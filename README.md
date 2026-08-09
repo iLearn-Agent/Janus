@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/e797bf7b-7295-48c3-8879-ad5c816a1259
 
 ## 📰 News
 
-- **2026-08-08** 📖 The Community documentation now covers local desktop use, reproducible public builds, Docker Compose self-hosting, Cloud Sync 9, and system acceptance testing.
+- **2026-08-10** 🎉 Janus is now officially open source! Every user receives a free daily token allowance. Feel free to download the app and get started right away.
 - **Task understanding** 🧭 uBuddy task intake now has longer recovery paths, safer fallback decisions, live model capability filtering, and improved profile and update interactions.
 - **Recoverable execution** 🔄 Background Agent work gained isolated task workspaces, bounded recovery, persistent wake-up state, and a fully configurable model service.
 - **Collaboration delivery** 🤝 Multi-Agent and cross-user tasks gained owner review, explicit member assignment, persistent task groups, stronger workspace isolation, and richer Office deliverables.
@@ -103,6 +103,16 @@ Janus connects three mechanisms without treating them as a single automatic chai
 | **Capability evolution** | Governed Skill and Memory versions | Evolve, review, activate, monitor, adopt, or roll back. |
 
 ## 🚀 Quick Start
+
+### 🍎 Launch on macOS
+
+The current macOS build is not signed or notarized. After moving `Janus.app` to `/Applications`, run the following commands in Terminal to launch it:
+
+```bash
+xattr -cr /Applications/Janus.app
+codesign --force --deep --sign - /Applications/Janus.app
+open /Applications/Janus.app
+```
 
 ### ⚙️ Configure inside Janus
 
@@ -168,6 +178,6 @@ Operators should prepare a Linux host with Docker Compose, a public domain, SMTP
 
 <p><strong>Thanks for visiting ✨ Janus</strong></p>
 
-<p><img src="https://visitor-badge.laobi.icu/badge?page_id=lil-kitty.Janus" alt="Visitors" /></p>
+<p><img src="https://visitor-badge.laobi.icu/badge?page_id=iLearn-Agent.Janus" alt="Visitors" /></p>
 
 </div>
