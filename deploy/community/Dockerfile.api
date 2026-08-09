@@ -1,0 +1,16 @@
+FROM node:22-bookworm-slim
+
+ENV NODE_ENV=production
+WORKDIR /opt/janus
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+COPY cloud ./cloud
+COPY src ./src
+COPY network ./network
+COPY assets ./assets
+COPY deploy/scripts/with-secrets.mjs ./deploy/scripts/with-secrets.mjs
+COPY deploy/community/scripts/start-node-service.sh ./deploy/community/scripts/start-node-service.sh
+RUN mkdir -p /var/lib/janus/files && chown -R node:node /var/lib/janus
+EXPOSE 8787
+ENTRYPOINT ["/bin/sh", "deploy/community/scripts/start-node-service.sh"]
+CMD ["node", "deploy/scripts/with-secrets.mjs", "--", "node", "cloud/src/index.mjs"]

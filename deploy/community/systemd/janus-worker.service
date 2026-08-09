@@ -1,0 +1,44 @@
+[Unit]
+Description=Janus Community Evolution Worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=janus-worker
+Group=janus-worker
+WorkingDirectory=/opt/janus/current
+EnvironmentFile=/etc/janus/worker.env
+LoadCredential=worker_provider_api_key:/etc/janus/secrets/worker_provider_api_key
+LoadCredential=worker_s3_secret:/etc/janus/secrets/worker_s3_secret
+LoadCredential=evolution_keys:/etc/janus/secrets/evolution_keys.json
+LoadCredential=evolution_worker_public_keys:/etc/janus/secrets/evolution_worker_public_keys.json
+LoadCredential=evolution_worker_private_keys:/etc/janus/secrets/evolution_worker_private_keys.json
+LoadCredential=task_memory_public_keys:/etc/janus/secrets/task_memory_public_keys.json
+LoadCredential=task_memory_private_keys:/etc/janus/secrets/task_memory_private_keys.json
+Environment=JANUS_EVOLUTION_PROVIDER_API_KEY_FILE=%d/worker_provider_api_key
+Environment=JANUS_S3_SECRET_ACCESS_KEY_FILE=%d/worker_s3_secret
+Environment=JANUS_EVOLUTION_KEYS_JSON_FILE=%d/evolution_keys
+Environment=JANUS_EVOLUTION_WORKER_PUBLIC_KEYS_JSON_FILE=%d/evolution_worker_public_keys
+Environment=JANUS_EVOLUTION_WORKER_PRIVATE_KEYS_JSON_FILE=%d/evolution_worker_private_keys
+Environment=JANUS_TASK_MEMORY_CLOUD_PUBLIC_KEYS_JSON_FILE=%d/task_memory_public_keys
+Environment=JANUS_TASK_MEMORY_CLOUD_PRIVATE_KEYS_JSON_FILE=%d/task_memory_private_keys
+ExecStart=/usr/bin/node deploy/scripts/with-secrets.mjs -- /usr/bin/node cloud/src/evolution-worker.mjs
+Restart=on-failure
+RestartSec=5
+Nice=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/janus/worker /var/log/janus
+
+[Install]
+WantedBy=multi-user.target

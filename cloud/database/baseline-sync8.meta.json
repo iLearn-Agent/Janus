@@ -1,0 +1,10 @@
+{
+  "baselineId": "baseline_sync8_081",
+  "firstPostBaselineMigration": "082_provider_key_applications.sql",
+  "syncProtocolVersion": 8,
+  "schemaFingerprint": "763951a095d1599b9d53b39847a76206087885ed417e56b0da635444212f51a5",
+  "schemaObjectCount": 2584,
+  "baselineSha256": "86ee13d8d4f9272b73021cad0d8d65982420fffefb8da18d90b3de879564b2fe",
+  "seedSha256": "bf060f1d80194e19d4c627b30cf9cd4b27322f6d67c8a8fc32d16a90cc6a27d9",
+  "historicalEquivalenceVerified": true
+}

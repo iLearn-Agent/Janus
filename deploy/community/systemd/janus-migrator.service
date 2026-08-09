@@ -1,0 +1,23 @@
+[Unit]
+Description=Janus Community database migrator
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=janus-migrator
+Group=janus-migrator
+WorkingDirectory=/opt/janus/current
+EnvironmentFile=/etc/janus/migrator.env
+ExecStart=/usr/bin/node deploy/scripts/with-secrets.mjs -- /usr/bin/node cloud/scripts/migrate.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

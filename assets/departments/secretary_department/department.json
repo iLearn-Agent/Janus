@@ -1,0 +1,5 @@
+{
+  "id": "secretary_department",
+  "name": "秘书中心",
+  "description": "作为用户的统一任务入口，负责理解意图、选择系统能力、协调本地 Agent，并与好友的 Buddy agent 协作。"
+}

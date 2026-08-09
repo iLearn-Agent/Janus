@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "agent_style_map": {
+    "ppt": "general",
+    "ppt_academic_report": "academic_report",
+    "ppt_major_project": "major_project"
+  },
+  "styles": [
+    {
+      "id": "general",
+      "label": "通用PPT",
+      "skill_name": "ppt-general",
+      "skill_path": "agents/ppt/styles/ppt-general/SKILL.md",
+      "aliases": [
+        "通用",
+        "默认",
+        "无风格",
+        "general",
+        "default presentation"
+      ],
+      "palette": {
+        "bg": "F8FAFC",
+        "ink": "111827",
+        "muted": "4B5563",
+        "accent": "2563EB",
+        "accent2": "0F766E",
+        "panel": "FFFFFF"
+      },
+      "prompt": "General editorial presentation style: let the subject determine the visual world and medium; use bold but controlled composition, tactile materials, and topic-specific imagery instead of default corporate-blue technology art.",
+      "usage_count": 0
+    },
+    {
+      "id": "academic_report",
+      "label": "学术汇报风",
+      "skill_name": "ppt-academic-report",
+      "skill_path": "agents/ppt/styles/ppt-academic-report/SKILL.md",
+      "aliases": [
+        "学术",
+        "学术汇报",
+        "组会",
+        "科研汇报",
+        "论文汇报",
+        "答辩",
+        "paper talk",
+        "academic report"
+      ],
+      "palette": {
+        "bg": "F8FAFC",
+        "ink": "0F172A",
+        "muted": "475569",
+        "accent": "0F766E",
+        "accent2": "2563EB",
+        "panel": "FFFFFF"
+      },
+      "prompt": "Academic report style: publication-grade scientific editorial imagery, restrained evidence-first hierarchy, precise forms, subtle paper or natural-material texture, and credible macro/cutaway/orthographic viewpoints without glossy corporate 3D or neon sci-fi styling.",
+      "usage_count": 0
+    },
+    {
+      "id": "major_project",
+      "label": "重大项目风",
+      "skill_name": "ppt-major-project",
+      "skill_path": "agents/ppt/styles/ppt-major-project/SKILL.md",
+      "aliases": [
+        "重大项目",
+        "横向项目",
+        "项目汇报",
+        "项目进展",
+        "里程碑",
+        "验收",
+        "industry project",
+        "major project"
+      ],
+      "palette": {
+        "bg": "F7FAFC",
+        "ink": "111827",
+        "muted": "52616B",
+        "accent": "1D4ED8",
+        "accent2": "D97706",
+        "panel": "FFFFFF"
+      },
+      "prompt": "Major horizontal-project style: cinematic engineering and industrial editorial imagery with credible scale, real materials, operational context, controlled dramatic lighting, deep spatial layering, and serious navy/amber accents rather than futuristic HUD graphics.",
+      "usage_count": 0
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+model_provider = "custom"
+model = "gpt-5.6-sol"
+review_model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
+disable_response_storage = true
+
+[features]
+multi_agent = true
+memories = true
+
+[memories]
+generate_memories = false
+use_memories = true
+disable_on_external_context = true
+
+[tools]
+web_search = true
+
+[sandbox_workspace_write]
+network_access = true
+
+[model_providers.custom]
+name = "custom"
+base_url = ""
+wire_api = "responses"
+requires_openai_auth = true
+env_key = "OPENAI_API_KEY"
+request_max_retries = 4
+stream_max_retries = 5

@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "families": {
+    "general": {
+      "label": "通用页面布局",
+      "default_sequence": [
+        "motivation_compare",
+        "challenge_map",
+        "method_pipeline",
+        "evidence_grid",
+        "result_big_numbers",
+        "case_gallery",
+        "ablation_matrix",
+        "summary_takeaways"
+      ],
+      "layouts": [
+        {
+          "id": "basic_content",
+          "label": "基础图文页",
+          "description": "用于普通正文、章节说明、文字加单图或无法匹配专用页面的可靠回退。"
+        },
+        {
+          "id": "motivation_compare",
+          "label": "背景动机页",
+          "description": "用于开场、背景、价值、受众痛点和目标说明。"
+        },
+        {
+          "id": "challenge_map",
+          "label": "问题关系页",
+          "description": "用于挑战、矛盾、关键问题、对象关系和判断链。"
+        },
+        {
+          "id": "method_pipeline",
+          "label": "流程框架页",
+          "description": "用于流程、方案、系统、架构、步骤和实施路径。"
+        },
+        {
+          "id": "evidence_grid",
+          "label": "证据组合页",
+          "description": "用于事实、案例、依据、表格、图示和多点支撑。"
+        },
+        {
+          "id": "result_big_numbers",
+          "label": "重点数字页",
+          "description": "用于核心指标、关键结论、对比数字和结果强调。"
+        },
+        {
+          "id": "case_gallery",
+          "label": "案例视觉页",
+          "description": "用于截图、附件原图、示例、作品、场景图和展示页。"
+        },
+        {
+          "id": "media_showcase",
+          "label": "全幅媒体页",
+          "description": "用于单张大图、视频封面、产品演示或全幅附件截图。"
+        },
+        {
+          "id": "ablation_matrix",
+          "label": "对比矩阵页",
+          "description": "用于方案对比、取舍、局限、风险和优先级。"
+        },
+        {
+          "id": "summary_takeaways",
+          "label": "总结收束页",
+          "description": "用于结论、建议、下一步和讨论收束。"
+        }
+      ]
+    },
+    "academic_report": {
+      "label": "学术汇报页面布局",
+      "default_sequence": [
+        "motivation_compare",
+        "challenge_map",
+        "method_pipeline",
+        "method_loop",
+        "benchmark_metrics",
+        "result_big_numbers",
+        "ablation_matrix",
+        "summary_takeaways"
+      ],
+      "layouts": [
+        {
+          "id": "basic_content",
+          "label": "基础图文页",
+          "description": "用于概念说明、章节过渡、文字加单图或专用证据页之外的内容。"
+        },
+        {
+          "id": "motivation_compare",
+          "label": "动机对比页",
+          "description": "左侧简洁痛点，右侧概念图或生成图，适合背景/为什么需要。"
+        },
+        {
+          "id": "challenge_map",
+          "label": "挑战关系页",
+          "description": "左侧核心判断，右侧实体关系/挑战图，适合研究问题和关键挑战。"
+        },
+        {
+          "id": "method_pipeline",
+          "label": "方法流程页",
+          "description": "横向输入-方法-输出/反馈流程，适合框架、链路、架构。"
+        },
+        {
+          "id": "method_loop",
+          "label": "迭代闭环页",
+          "description": "中心循环与侧边解释，适合优化、反思、反馈、agent loop。"
+        },
+        {
+          "id": "benchmark_metrics",
+          "label": "评测基准页",
+          "description": "数据集/平台指标卡 + 评测维度带，适合benchmark和数据集。"
+        },
+        {
+          "id": "result_big_numbers",
+          "label": "结果大数字页",
+          "description": "大数字指标 + 解释带，适合实验结果和关键数据。"
+        },
+        {
+          "id": "results_bars",
+          "label": "结果柱状图页",
+          "description": "多指标条形/柱状比较，适合生成质量、实验结果和跨数据集对比。"
+        },
+        {
+          "id": "leaderboard_table",
+          "label": "排行榜表格页",
+          "description": "数据集-指标-数值表格，高亮最佳方法，适合reranking和benchmark结果。"
+        },
+        {
+          "id": "ablation_matrix",
+          "label": "消融矩阵页",
+          "description": "组件-影响-解释矩阵，适合消融、对比、限制分析。"
+        },
+        {
+          "id": "evidence_grid",
+          "label": "证据网格页",
+          "description": "多块证据区组合表格、图、案例与解释，适合消融、效率和案例汇总。"
+        },
+        {
+          "id": "case_gallery",
+          "label": "案例/截图页",
+          "description": "大图/多图案例区 + 少量标注，适合demo、截图、论文图和生成案例。"
+        },
+        {
+          "id": "media_showcase",
+          "label": "全幅媒体页",
+          "description": "用于单张论文图、系统截图、视频封面或大幅实验案例。"
+        },
+        {
+          "id": "summary_takeaways",
+          "label": "总结收束页",
+          "description": "一句主结论 + 三个 takeaway/未来方向。"
+        }
+      ]
+    },
+    "major_project": {
+      "label": "重大项目页面布局",
+      "default_sequence": [
+        "project_target_map",
+        "domain_object_map",
+        "technical_route",
+        "workpackage_matrix",
+        "evaluation_dashboard",
+        "result_big_numbers",
+        "risk_action_table",
+        "milestone_roadmap",
+        "summary_takeaways"
+      ],
+      "layouts": [
+        {
+          "id": "basic_content",
+          "label": "基础图文页",
+          "description": "用于项目概述、章节说明、文字加单图或专用项目页之外的内容。"
+        },
+        {
+          "id": "project_target_map",
+          "label": "目标-证据映射页",
+          "description": "目标、方法、证据、交付物的追踪关系。"
+        },
+        {
+          "id": "domain_object_map",
+          "label": "对象建模页",
+          "description": "领域对象、关系、状态或拓扑结构。"
+        },
+        {
+          "id": "technical_route",
+          "label": "技术路线页",
+          "description": "宽幅技术路线，含输入、模块、输出、评价和反馈。"
+        },
+        {
+          "id": "workpackage_matrix",
+          "label": "任务包矩阵页",
+          "description": "任务包、阶段产出、接口、责任和证据。"
+        },
+        {
+          "id": "evaluation_dashboard",
+          "label": "评测体系页",
+          "description": "测试对象、指标、评分、验收含义。"
+        },
+        {
+          "id": "result_big_numbers",
+          "label": "结果大数字页",
+          "description": "核心指标、对比、解释和限制。"
+        },
+        {
+          "id": "risk_action_table",
+          "label": "风险行动表页",
+          "description": "风险、影响、应对、责任和状态。"
+        },
+        {
+          "id": "milestone_roadmap",
+          "label": "里程碑路线页",
+          "description": "阶段、节点、交付物、下一步。"
+        },
+        {
+          "id": "media_showcase",
+          "label": "全幅媒体页",
+          "description": "用于系统截图、产品演示、现场照片或单张大图证据。"
+        },
+        {
+          "id": "summary_takeaways",
+          "label": "总结决策页",
+          "description": "已证明能力、剩余问题、所需决策。"
+        }
+      ]
+    }
+  }
+}

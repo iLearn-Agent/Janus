@@ -1,0 +1,179 @@
+name: janus-community
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/janus/start-postgres.sh"]
+    command: ["postgres"]
+    environment:
+      POSTGRES_DB: janus
+      POSTGRES_USER: janus_bootstrap
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_bootstrap_password
+      JANUS_POSTGRES_API_PASSWORD_FILE: /run/secrets/postgres_api_password
+      JANUS_POSTGRES_WORKER_PASSWORD_FILE: /run/secrets/postgres_worker_password
+      JANUS_POSTGRES_MIGRATOR_PASSWORD_FILE: /run/secrets/postgres_migrator_password
+    secrets:
+      - postgres_bootstrap_password
+      - postgres_api_password
+      - postgres_worker_password
+      - postgres_migrator_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./scripts/start-postgres.sh:/opt/janus/start-postgres.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U janus_bootstrap -d janus"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/janus/start-minio.sh"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets: [minio_root_password]
+    volumes:
+      - minio-data:/data
+      - ./scripts/start-minio.sh:/opt/janus/start-minio.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "/opt/janus/init-minio.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      JANUS_S3_BUCKET: ${JANUS_S3_BUCKET:-janus-sync}
+      JANUS_MINIO_API_ACCESS_KEY: ${JANUS_MINIO_API_ACCESS_KEY:-janus-api}
+      JANUS_MINIO_API_SECRET_KEY_FILE: /run/secrets/api_s3_secret
+      JANUS_MINIO_WORKER_ACCESS_KEY: ${JANUS_MINIO_WORKER_ACCESS_KEY:-janus-worker}
+      JANUS_MINIO_WORKER_SECRET_KEY_FILE: /run/secrets/worker_s3_secret
+    secrets: [minio_root_password, api_s3_secret, worker_s3_secret]
+    volumes:
+      - ./scripts/init-minio.sh:/opt/janus/init-minio.sh:ro
+      - ./minio/bucket-policy.json.template:/opt/janus/bucket-policy.json.template:ro
+    networks: [backend]
+    restart: "no"
+
+  migrator:
+    build:
+      context: ../..
+      dockerfile: deploy/community/Dockerfile.migrator
+    env_file: [../env/migrator.env]
+    depends_on:
+      postgres: { condition: service_healthy }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+    restart: "no"
+
+  cloud-api:
+    build:
+      context: ../..
+      dockerfile: deploy/community/Dockerfile.api
+    restart: unless-stopped
+    env_file: [../env/api.env]
+    secrets:
+      - api_jwt_secret
+      - api_email_code_secret
+      - api_smtp_password
+      - api_s3_secret
+      - evolution_worker_public_keys
+      - task_memory_public_keys
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+    volumes:
+      - file-storage:/var/lib/janus/files
+    expose: ["8787"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+  evolution-worker:
+    build:
+      context: ../..
+      dockerfile: deploy/community/Dockerfile.worker
+    restart: unless-stopped
+    env_file: [../env/worker.env]
+    secrets:
+      - worker_provider_api_key
+      - worker_s3_secret
+      - evolution_keys
+      - evolution_worker_public_keys
+      - evolution_worker_private_keys
+      - task_memory_public_keys
+      - task_memory_private_keys
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      JANUS_DOMAIN: ${JANUS_DOMAIN:?set JANUS_DOMAIN}
+      JANUS_S3_DOMAIN: ${JANUS_S3_DOMAIN:?set JANUS_S3_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      cloud-api: { condition: service_healthy }
+    security_opt: [no-new-privileges:true]
+    networks: [backend, edge]
+
+networks:
+  backend:
+    internal: true
+  edge:
+
+volumes:
+  postgres-data:
+  minio-data:
+  file-storage:
+  caddy-data:
+  caddy-config:
+
+secrets:
+  postgres_bootstrap_password: { file: ../secrets/postgres_bootstrap_password.txt }
+  postgres_api_password: { file: ../secrets/postgres_api_password.txt }
+  postgres_worker_password: { file: ../secrets/postgres_worker_password.txt }
+  postgres_migrator_password: { file: ../secrets/postgres_migrator_password.txt }
+  minio_root_password: { file: ../secrets/minio_root_password.txt }
+  api_jwt_secret: { file: ../secrets/api_jwt_secret.txt }
+  api_email_code_secret: { file: ../secrets/api_email_code_secret.txt }
+  api_smtp_password: { file: ../secrets/api_smtp_password.txt }
+  api_s3_secret: { file: ../secrets/api_s3_secret.txt }
+  worker_s3_secret: { file: ../secrets/worker_s3_secret.txt }
+  worker_provider_api_key: { file: ../secrets/worker_provider_api_key.txt }
+  evolution_keys: { file: ../secrets/evolution_keys.json }
+  evolution_worker_public_keys: { file: ../secrets/evolution_worker_public_keys.json }
+  evolution_worker_private_keys: { file: ../secrets/evolution_worker_private_keys.json }
+  task_memory_public_keys: { file: ../secrets/task_memory_public_keys.json }
+  task_memory_private_keys: { file: ../secrets/task_memory_private_keys.json }

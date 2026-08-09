@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "templates": [
+    {
+      "id": "none",
+      "label": "无",
+      "description": "使用无学校标识的通用多功能页面库。",
+      "path": "templates/通用多功能PPT模板.pptx",
+      "engine": "slide_library",
+      "schema_version": "janus-multifunction-v1",
+      "schema": "templates/MULTIFUNCTION_TEMPLATE_SCHEMA.md"
+    }
+  ]
+}

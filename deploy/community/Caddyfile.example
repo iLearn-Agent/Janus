@@ -1,0 +1,36 @@
+{$JANUS_DOMAIN} {
+  encode zstd gzip
+  request_body {
+    max_size 2GB
+  }
+  reverse_proxy cloud-api:8787 {
+    transport http {
+      read_timeout 300s
+      write_timeout 300s
+    }
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -Server
+  }
+}
+
+{$JANUS_S3_DOMAIN} {
+  request_body {
+    max_size 2GB
+  }
+  reverse_proxy minio:9000 {
+    transport http {
+      read_timeout 300s
+      write_timeout 300s
+    }
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -Server
+  }
+}

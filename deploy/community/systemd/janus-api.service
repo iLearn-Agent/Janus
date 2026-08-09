@@ -1,0 +1,37 @@
+[Unit]
+Description=Janus Community Cloud API
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=janus-api
+Group=janus-api
+WorkingDirectory=/opt/janus/current
+EnvironmentFile=/etc/janus/api.env
+LoadCredential=api_jwt_secret:/etc/janus/secrets/api_jwt_secret
+LoadCredential=api_email_code_secret:/etc/janus/secrets/api_email_code_secret
+LoadCredential=api_smtp_password:/etc/janus/secrets/api_smtp_password
+LoadCredential=api_s3_secret:/etc/janus/secrets/api_s3_secret
+Environment=JWT_SECRET_FILE=%d/api_jwt_secret
+Environment=EMAIL_CODE_SECRET_FILE=%d/api_email_code_secret
+Environment=SMTP_PASS_FILE=%d/api_smtp_password
+Environment=JANUS_S3_SECRET_ACCESS_KEY_FILE=%d/api_s3_secret
+ExecStart=/usr/bin/node deploy/scripts/with-secrets.mjs -- /usr/bin/node cloud/src/index.mjs
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/janus/files /var/log/janus
+
+[Install]
+WantedBy=multi-user.target
