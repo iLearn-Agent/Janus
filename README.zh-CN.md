@@ -105,7 +105,9 @@ Janus 将三类机制相互连接，但不会将它们视为同一条自动流�
 
 ## 🚀 快速开始
 
-前往 [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases) 下载与你的操作系统对应的版本即可。
+可前往 [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases) 下载对应操作系统的版本。
+
+Janus 安装后即可开箱使用，每位用户每天均可获得免费 Token 额度。如需使用自定义模型服务，请参考下方配置指南。
 
 ### 🍎 在 macOS 上启动
 

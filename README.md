@@ -106,6 +106,8 @@ Janus connects three mechanisms without treating them as a single automatic chai
 
 Installation packages for supported operating systems are available from [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases).
 
+Janus is ready to use after installation, with a free daily token allowance for every user. For custom model service settings, follow the configuration guide below.
+
 ### 🍎 Launch on macOS
 
 The current macOS build is not signed or notarized. After moving `Janus.app` to `/Applications`, run the following commands in Terminal to launch it:
