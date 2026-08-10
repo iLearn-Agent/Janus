@@ -10,7 +10,7 @@
   Towards Evolving Agentic Laboratory
 </h2>
 
-<p><strong>Recruit agents, build human–agent collaboration networks, and turn complex work into reviewed deliverables.</strong></p>
+<p><strong>Recruit agents, build human–agent collaboration networks, and turn work into reviewed deliverables.</strong></p>
 <p>
   <img src="https://img.shields.io/badge/Windows-Ready-0078D4?style=flat-square&logo=windows11&logoColor=white&labelColor=1a1a2e" alt="Windows" />
   <img src="https://img.shields.io/badge/macOS-Ready-6b7280?style=flat-square&logo=apple&logoColor=white&labelColor=1a1a2e" alt="macOS" />
