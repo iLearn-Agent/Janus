@@ -26,7 +26,9 @@
 
 </div>
 
-📖 **Language:** **English** · [简体中文](README.zh-CN.md)
+<p align="center">
+  📖 <strong>Language:</strong> <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
 ---
 
