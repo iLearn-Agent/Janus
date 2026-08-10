@@ -104,7 +104,7 @@ Janus connects three mechanisms without treating them as a single automatic chai
 
 ## 🚀 Quick Start
 
-Download the version for your operating system from [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases).
+Installation packages for supported operating systems are available from [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases).
 
 ### 🍎 Launch on macOS
 
