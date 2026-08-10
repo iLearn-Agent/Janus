@@ -174,9 +174,7 @@ Operators should prepare a Linux host with Docker Compose, a public domain, SMTP
 - [Self-hosting guide (English)](docs/self-hosting.md)
 - [自建服务器指南（简体中文）](docs/self-hosting.zh-CN.md)
 
-## License
-
-Janus is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use is not permitted under this license and requires a separate license from the copyright holder. This is a source-available license, not an OSI-approved open-source license.
+---
 
 <div align="center">
 
