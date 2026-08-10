@@ -32,7 +32,7 @@
 
 ### 🌐 From isolated assistants to an evolving laboratory
 
-Most agent systems stop at a single conversation or a temporary group of agents. Real work needs more: people must be able to recruit specialists, combine human judgment with agent execution, preserve responsibilities across long tasks, evaluate results, and continuously improve the laboratory that produced them.
+Most agent systems stop at a single conversation or a temporary group of agents. Real work needs more: people must be able to recruit specialists, combine human judgment with agent execution, preserve responsibilities across long tasks, evaluation, and continuously improve the laboratory that produced them.
 
 ### 💡 The Janus approach
 
