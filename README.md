@@ -104,6 +104,8 @@ Janus connects three mechanisms without treating them as a single automatic chai
 
 ## 🚀 Quick Start
 
+Download the version for your operating system from [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases).
+
 ### 🍎 Launch on macOS
 
 The current macOS build is not signed or notarized. After moving `Janus.app` to `/Applications`, run the following commands in Terminal to launch it:

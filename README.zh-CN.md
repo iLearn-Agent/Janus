@@ -105,6 +105,8 @@ Janus 将三类机制相互连接，但不会将它们视为同一条自动流�
 
 ## 🚀 快速开始
 
+前往 [GitHub Releases](https://github.com/iLearn-Agent/Janus/releases) 下载与你的操作系统对应的版本即可。
+
 ### 🍎 在 macOS 上启动
 
 当前 macOS 构建尚未签名或公证。将 `Janus.app` 移动到 `/Applications` 后，在终端运行以下命令启动：
