@@ -113,7 +113,7 @@
     "name": "Janus Team",
     "email": "dev@janus.local"
   },
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "build": {
     "appId": "local.janus.desktop",
     "productName": "Janus",
