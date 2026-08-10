@@ -38,7 +38,7 @@ Most agent systems stop at a single conversation or a temporary group of agents.
 
 **Janus is a desktop workspace for building and operating an evolving agentic laboratory.** People and agents collaborate in persistent workflows, while every Agent has visible roles, performance and leadership records, and a governed capability-version history.
 
-https://github.com/user-attachments/assets/e797bf7b-7295-48c3-8879-ad5c816a1259
+https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 
 ---
 
@@ -92,7 +92,7 @@ Janus treats Agent capability as a governed, versioned process rather than a fix
 | **Cluster evolution** | An eligible active Agent cohort | Derive reusable, privacy-aware improvements from shared work evidence. |
 | **Talent Market** | Approved cluster outputs | Validate and publish versions for adoption or rollback. |
 
-## 🏛️ Agent Governance
+## 📜 Agent Governance
 
 Janus connects three mechanisms without treating them as a single automatic chain:
 
@@ -165,7 +165,7 @@ stream_max_retries = 5
 
 After saving the two files, return to **Model Service** and run the connection test. Credentials remain in the current desktop profile.
 
-## 🖥️ Self-hosting
+## 🌍 Self-hosting
 
 Self-hosting is needed for shared accounts, laboratory workspaces, messaging, cross-user delegation, synchronized collaboration, shared files, and shared evolution services. The supported Community deployment uses PostgreSQL, MinIO, a Migrator, the Cloud API, an isolated Evolution Worker, and Caddy through Docker Compose.
 
