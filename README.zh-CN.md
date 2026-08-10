@@ -21,13 +21,13 @@
 </p>
 
 <p>
-  <a href="README.md"><img src="https://img.shields.io/badge/English-1a1a2e?style=flat-square" alt="English" /></a>
-  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-1a1a2e?style=flat-square" alt="简体中文" /></a>
   <a href="#-快速开始"><img src="https://img.shields.io/badge/快速开始-立即使用-FFC107?style=flat-square&logo=rocket&logoColor=white&labelColor=1a1a2e" alt="快速开始" /></a>
   <a href="docs/self-hosting.zh-CN.md"><img src="https://img.shields.io/badge/自建服务-部署指南-16a34a?style=flat-square&logo=serverfault&logoColor=white&labelColor=1a1a2e" alt="自建服务指南" /></a>
 </p>
 
 </div>
+
+📖 **语言：** [English](README.md) · **简体中文**
 
 ---
 

@@ -20,13 +20,13 @@
 </p>
 
 <p>
-  <a href="README.md"><img src="https://img.shields.io/badge/English-1a1a2e?style=flat-square" alt="English" /></a>
-  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/简体中文-1a1a2e?style=flat-square" alt="简体中文" /></a>
   <a href="#-quick-start"><img src="https://img.shields.io/badge/Quick%20Start-Get%20Started-FFC107?style=flat-square&logo=rocket&logoColor=white&labelColor=1a1a2e" alt="Quick Start" /></a>
   <a href="docs/self-hosting.md"><img src="https://img.shields.io/badge/Self--hosting-Guide-16a34a?style=flat-square&logo=serverfault&logoColor=white&labelColor=1a1a2e" alt="Self-hosting Guide" /></a>
 </p>
 
 </div>
+
+📖 **Language:** **English** · [简体中文](README.zh-CN.md)
 
 ---
 
