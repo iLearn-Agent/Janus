@@ -38,7 +38,7 @@ Most agent systems stop at a single conversation or a temporary group of agents.
 
 **Janus is a desktop workspace for building and operating an evolving agentic laboratory.** People and agents collaborate in persistent workflows, while every Agent has visible roles, performance and leadership records, and a governed capability-version history.
 
-https://github.com/user-attachments/assets/e797bf7b-7295-48c3-8879-ad5c816a1259
+https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 
 ---
 
