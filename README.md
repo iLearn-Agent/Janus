@@ -7,7 +7,7 @@
   <picture>
     <img src="assets/icons/Janus-transparent.png" width="140" alt="Janus" />
   </picture><br />
-  An Evolving Agentic Laboratory
+  Towards Evolving Agentic Laboratory
 </h2>
 
 <p><strong>Recruit agents, build human–agent collaboration networks, and turn complex work into reviewed deliverables.</strong></p>
