@@ -46,6 +46,7 @@ https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 
 ## 📰 News
 
+- **2026-08-16** 🚀 Janus v1.1.0 is now available, with a redesigned uBuddy collaboration experience, improved PPT and file delivery, background execution, messaging, navigation, and localization, plus the Follower Beta and in-app updates across Windows, Linux, and macOS.
 - **2026-08-10** 🎉 Janus is now officially open source! Every user receives a free daily token allowance. Feel free to download the app and get started right away.
 - **Task understanding** 🧭 uBuddy task intake now has longer recovery paths, safer fallback decisions, live model capability filtering, and improved profile and update interactions.
 - **Recoverable execution** 🔄 Background Agent work gained isolated task workspaces, bounded recovery, persistent wake-up state, and a fully configurable model service.
