@@ -8,13 +8,13 @@ export class OpenAIImagesClient {
     apiKey = '',
     apiBase = 'https://api.openai.com/v1',
     fetchImpl = globalThis.fetch,
-    timeoutMs = 300_000,
+    timeoutMs = 600_000,
     downloadTimeoutMs = 60_000,
   } = {}) {
     this.apiKey = apiKey;
     this.apiBase = normalizeOpenAiApiBase(apiBase);
     this.fetchImpl = fetchImpl;
-    this.timeoutMs = Math.max(1_000, Number(timeoutMs || 300_000));
+    this.timeoutMs = Math.max(1_000, Number(timeoutMs || 600_000));
     this.downloadTimeoutMs = Math.max(1_000, Number(downloadTimeoutMs || 60_000));
     this.http = createHttpClient({ fetchImpl, timeoutMs: this.downloadTimeoutMs });
   }
@@ -34,13 +34,14 @@ export class OpenAIImagesClient {
     return parseOpenAiJsonResponse(response, '图片编辑');
   }
 
-  async imageBytesFromResponse(response, actionLabel) {
+  async imageBytesFromResponse(response, actionLabel, { signal = null } = {}) {
     const first = Array.isArray(response?.data) ? response.data[0] : null;
     if (first?.b64_json) return Buffer.from(first.b64_json, 'base64');
     if (first?.url) {
       const raw = await this.http.request(first.url, {
         method: 'GET',
         responseType: 'arrayBuffer',
+        signal,
         errorMessage: `${actionLabel}已完成，但图片下载失败。`,
       });
       return Buffer.from(raw);
@@ -105,8 +106,29 @@ export class OpenAIImagesClient {
 }
 
 export function normalizeOpenAiApiBase(value) {
-  const base = String(value || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  return base.endsWith('/v1') ? base : `${base}/v1`;
+  const raw = String(value || 'https://api.openai.com/v1').trim();
+  const base = unwrapProviderUrl(raw).replace(/\/+$/, '');
+  let parsed;
+  try {
+    parsed = new URL(base);
+  } catch {
+    throw new Error(`图片服务地址无效：${raw}`);
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+    throw new Error(`图片服务地址必须是 HTTP(S) URL：${raw}`);
+  }
+  parsed.hash = '';
+  const normalized = parsed.toString().replace(/\/+$/, '');
+  return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`;
+}
+
+function unwrapProviderUrl(value = '') {
+  const text = String(value || '').trim();
+  const markdown = text.match(/^\[([^\]]+)\]\s*\((https?:\/\/[^)]+)\)$/i);
+  if (markdown) return markdown[2].trim();
+  const bracketed = text.match(/^\[\s*(https?:\/\/[^\]]+)\s*\]$/i);
+  if (bracketed) return bracketed[1].trim();
+  return text;
 }
 
 async function parseOpenAiJsonResponse(response, actionLabel) {

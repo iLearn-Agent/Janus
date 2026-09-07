@@ -9,9 +9,7 @@ export function createS3ObjectStore({ env = process.env, fetchImpl = globalThis.
       const checksum = Buffer.from(sha256, 'hex').toString('base64');
       const headers = { 'content-type': contentType, 'x-amz-checksum-sha256': checksum };
       return {
-        method: 'PUT', url: presignedUrl(config, 'PUT', objectKey, {
-          endpoint: config.publicEndpoint, expiresSeconds, signedHeaders: headers,
-        }),
+        method: 'PUT', url: presignedUrl(config, 'PUT', objectKey, { expiresSeconds, signedHeaders: headers }),
         headers, expiresAt: new Date(Date.now() + expiresSeconds * 1000).toISOString(), sizeBytes,
       };
     },
@@ -30,10 +28,7 @@ export function createS3ObjectStore({ env = process.env, fetchImpl = globalThis.
     },
     async downloadUrl({ objectKey, expiresSeconds = 300 }) {
       requireAvailable(config);
-      return {
-        url: presignedUrl(config, 'GET', objectKey, { endpoint: config.publicEndpoint, expiresSeconds }),
-        expiresAt: new Date(Date.now() + expiresSeconds * 1000).toISOString(),
-      };
+      return { url: presignedUrl(config, 'GET', objectKey, { expiresSeconds }), expiresAt: new Date(Date.now() + expiresSeconds * 1000).toISOString() };
     },
     async deleteObject({ objectKey }) {
       requireAvailable(config);
@@ -69,10 +64,8 @@ export function createMemoryObjectStore() {
 }
 
 function s3Config(env) {
-  const endpoint = String(env.JANUS_S3_ENDPOINT || '').replace(/\/+$/, '');
   return {
-    endpoint,
-    publicEndpoint: String(env.JANUS_S3_PUBLIC_ENDPOINT || endpoint).replace(/\/+$/, ''),
+    endpoint: String(env.JANUS_S3_ENDPOINT || '').replace(/\/+$/, ''),
     region: String(env.JANUS_S3_REGION || 'us-east-1'),
     bucket: String(env.JANUS_S3_BUCKET || ''),
     accessKeyId: String(env.JANUS_S3_ACCESS_KEY_ID || env.AWS_ACCESS_KEY_ID || ''),
@@ -82,12 +75,12 @@ function s3Config(env) {
   };
 }
 
-function presignedUrl(config, method, objectKey, { endpoint = config.endpoint, expiresSeconds = 300, signedHeaders = {} } = {}) {
+function presignedUrl(config, method, objectKey, { expiresSeconds = 300, signedHeaders = {} } = {}) {
   const now = new Date();
   const amzDate = isoAmz(now);
   const date = amzDate.slice(0, 8);
   const credentialScope = `${date}/${config.region}/s3/aws4_request`;
-  const target = objectTarget({ ...config, endpoint }, objectKey);
+  const target = objectTarget(config, objectKey);
   const headers = { host: target.host, ...lowerHeaders(signedHeaders) };
   const signedHeaderNames = Object.keys(headers).sort();
   const query = new URLSearchParams({

@@ -1,4 +1,4 @@
-# 🌍 自建 Janus 服务
+# 🖥️ 自建 Janus 服务
 
 [简体中文](self-hosting.zh-CN.md) · [English](self-hosting.md) · [返回 README](../README.zh-CN.md)
 

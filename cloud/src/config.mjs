@@ -5,10 +5,8 @@ export function readConfig(env = process.env, options = {}) {
     throw new Error('JWT_SECRET must be at least 32 characters.');
   }
   return {
-    env,
-    host: String(env.HOST || env.JANUS_API_HOST || '127.0.0.1').trim() || '127.0.0.1',
     port: Number(env.PORT || 8787),
-    publicBaseUrl: String(env.JANUS_PUBLIC_BASE_URL || '').trim().replace(/\/+$/g, ''),
+    host: String(env.JANUS_CLOUD_HOST || env.HOST || '127.0.0.1').trim() || '127.0.0.1',
     databaseUrl: env.DATABASE_URL || '',
     evolutionWorkerDatabaseUrl: env.EVOLUTION_WORKER_DATABASE_URL || (env.NODE_ENV === 'production' ? '' : env.DATABASE_URL || ''),
     migratorDatabaseUrl: env.DATABASE_MIGRATOR_URL || (env.NODE_ENV === 'production' ? '' : env.DATABASE_URL || ''),
@@ -20,7 +18,7 @@ export function readConfig(env = process.env, options = {}) {
     emailCodeTtlMinutes: Number(env.EMAIL_CODE_TTL_MINUTES || 10),
     emailCodeResendSeconds: Number(env.EMAIL_CODE_RESEND_SECONDS || env.JANUS_EMAIL_CODE_RESEND_SECONDS || 60),
     organizationSecondaryVerificationTtlSeconds: Number(env.ORGANIZATION_SECONDARY_VERIFICATION_TTL_SECONDS || 7 * 24 * 60 * 60),
-    mailFrom: env.MAIL_FROM || 'Janus <no-reply@example.invalid>',
+    mailFrom: env.MAIL_FROM || 'Janus <no-reply@janus.local>',
     providerKeyApplicationEmail: env.JANUS_PROVIDER_KEY_APPLICATION_EMAIL || env.PROVIDER_KEY_APPLICATION_EMAIL || '',
     providerKeyDistributionBaseUrl: env.JANUS_PROVIDER_KEY_DISTRIBUTION_BASE_URL || env.JANUS_TRIAL_CODEX_BASE_URL || '',
     providerKeyDistributionKey: env.JANUS_PROVIDER_KEY_DISTRIBUTION_KEY || env.JANUS_TRIAL_CODEX_KEY || '',

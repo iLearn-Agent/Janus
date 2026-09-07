@@ -6,9 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { createPgPool } from '../src/db.mjs';
 
 const dryRun = process.argv.includes('--dry-run');
-const sqlitePath = argument('--sqlite') || process.env.JANUS_LEGACY_CLOUD_DB || '';
+const sqlitePath = argument('--sqlite') || process.env.JANUS_LEGACY_CLOUD_DB || '/path/to/janus-cloud/cloud.db';
 const databaseUrl = process.env.DATABASE_MIGRATOR_URL || '';
-if (!sqlitePath) throw new Error('Pass --sqlite or set JANUS_LEGACY_CLOUD_DB explicitly.');
 if (!fs.existsSync(sqlitePath)) throw new Error(`Legacy SQLite database was not found: ${sqlitePath}`);
 if (!databaseUrl) throw new Error('DATABASE_MIGRATOR_URL is required.');
 

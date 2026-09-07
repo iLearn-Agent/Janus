@@ -2,7 +2,6 @@ const packageJson = require('../package.json');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const applyTrialProviderBundle = require('./electron-builder.trial-provider.cjs');
-const applyDistributionProfile = require('./electron-builder.distribution.cjs');
 
 const build = structuredClone(packageJson.build || {});
 const windowsPublisherName = String(process.env.JANUS_WINDOWS_PUBLISHER_NAME || '').trim();
@@ -57,6 +56,7 @@ build.files = [
   'assets/**/*',
   'node_modules/@openai/codex/**/*',
   'node_modules/@openai/codex-win32-x64/**/*',
+  'node_modules/katex/**/*',
   'package.json',
   '!node_modules/@openai/codex-darwin-*/**/*',
   '!node_modules/@openai/codex-linux-*/**/*',
@@ -67,4 +67,4 @@ build.files = [
   '!**/*.pyo',
 ];
 
-module.exports = applyDistributionProfile(applyTrialProviderBundle(build, { projectRoot }), { projectRoot });
+module.exports = applyTrialProviderBundle(build, { projectRoot });

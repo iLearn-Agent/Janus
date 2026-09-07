@@ -6,8 +6,8 @@ module.exports = function applyTestReleaseIdentity(sourceBuild, { output, artifa
   if (beforePack) {
     build.beforePack = async (context) => {
       const previousRequired = process.env.JANUS_TRIAL_PROVIDER_REQUIRED;
-      const official = ['official', 'internal-embedded'].includes(String(process.env.JANUS_DISTRIBUTION_MODE || '').trim().toLowerCase());
-      if (official) process.env.JANUS_TRIAL_PROVIDER_REQUIRED = '1';
+      const internalEmbedded = String(process.env.JANUS_DISTRIBUTION_MODE || '').trim().toLowerCase() === 'open-source';
+      if (internalEmbedded) process.env.JANUS_TRIAL_PROVIDER_REQUIRED = '1';
       else delete process.env.JANUS_TRIAL_PROVIDER_REQUIRED;
       try {
         await beforePack(context);
@@ -17,21 +17,23 @@ module.exports = function applyTestReleaseIdentity(sourceBuild, { output, artifa
       }
     };
   }
-  build.appId = String(process.env.JANUS_TEST_DESKTOP_APP_ID || 'local.janus.desktop.test').trim();
-  build.productName = String(process.env.JANUS_TEST_DESKTOP_PRODUCT_NAME || 'Janus Test').trim();
-  build.executableName = build.productName;
+  build.appId = 'local.janus.desktop.test';
+  build.productName = 'Janus Test';
+  build.executableName = 'Janus Test';
   build.artifactName = artifactName;
   build.extraMetadata = {
     ...(build.extraMetadata || {}),
-    name: String(process.env.JANUS_TEST_DESKTOP_PACKAGE_NAME || 'janus-test').trim(),
-    productName: build.productName,
+    name: 'janus-test',
+    productName: 'Janus Test',
     janusDesktopReleaseChannel: 'test',
     janusSourceCommit: sourceIdentity('JANUS_SOURCE_COMMIT', ['rev-parse', 'HEAD']),
     janusSourceTree: sourceIdentity('JANUS_SOURCE_TREE', ['rev-parse', 'HEAD^{tree}']),
   };
-  const updateUrl = String(process.env.JANUS_TEST_UPDATE_URL || '').trim().replace(/\/+$/g, '');
-  if (updateUrl) build.publish = [{ provider: 'generic', url: updateUrl, channel: 'latest' }];
-  else delete build.publish;
+  build.publish = [{
+    provider: 'generic',
+    url: 'http://your-janus.example/janus/test_releases',
+    channel: 'latest',
+  }];
   build.detectUpdateChannel = false;
   build.directories = {
     ...(build.directories || {}),

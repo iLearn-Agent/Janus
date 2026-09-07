@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" data-default-language="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>确认计划选项</title>
+    <script>
+      const platform = new URLSearchParams(location.search).get('platform');
+      if (platform) document.documentElement.dataset.platform = platform;
+    </script>
+    <link rel="stylesheet" href="./planQuestionWindow.css" />
+  </head>
+  <body>
+    <main id="plan-question-window" class="question-window-shell" aria-busy="true">
+      <div class="question-window-loading">正在载入计划问题…</div>
+    </main>
+    <script type="module" src="./planQuestionWindow.js"></script>
+  </body>
+</html>

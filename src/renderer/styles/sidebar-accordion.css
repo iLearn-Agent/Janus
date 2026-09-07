@@ -1,0 +1,538 @@
+/* Accordion sidebar for projects and conversations. */
+.sidebar-browser {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 8px;
+}
+
+.sidebar-accordion-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-accordion-section + .sidebar-accordion-section {
+  margin-top: 30px;
+}
+
+.sidebar-section-row,
+.sidebar-project-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  border-radius: 8px;
+}
+
+.sidebar-project-row {
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+}
+
+.sidebar-section-main,
+.sidebar-project-main {
+  display: grid;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #6f7680;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.sidebar-section-main {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  gap: 10px;
+  min-height: 24px;
+  padding: 0 10px 2px;
+}
+
+.sidebar-project-main {
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.sidebar-project-main.project-leaf-main {
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  padding-left: 10px;
+}
+
+.sidebar-project-main:hover,
+.sidebar-project-main:focus-visible,
+.sidebar-project-row.active .sidebar-project-main {
+  background: transparent;
+  outline: none;
+}
+
+.sidebar-project-row:hover,
+.sidebar-project-row:focus-within,
+.sidebar-project-row.menu-open,
+.sidebar-project-row.active {
+  background: #efefed;
+}
+
+.sidebar-section-main span,
+.sidebar-section-main em,
+.sidebar-project-main span,
+.sidebar-project-main em {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  color: #68717b;
+  font-style: normal;
+}
+
+.sidebar-section-main svg,
+.sidebar-project-main svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.sidebar-section-main strong,
+.sidebar-project-main strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-section-main strong {
+  color: #8f949b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sidebar-project-main strong {
+  color: #49525d;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.sidebar-section-more,
+.sidebar-project-more,
+.sidebar-project-create {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #6f7680;
+  background: transparent;
+  opacity: 1;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.sidebar-section-more:hover,
+.sidebar-project-more:hover,
+.sidebar-project-create:hover {
+  color: #1f2933;
+  background: #e3e5e6;
+}
+
+.sidebar-section-more svg,
+.sidebar-project-more svg,
+.sidebar-project-create svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.1;
+}
+
+.sidebar-accordion-body {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  padding: 4px 0 0;
+}
+
+.sidebar-project-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sidebar-project-group .project-session-list {
+  gap: 2px;
+  padding-left: 0;
+}
+
+.sidebar-project-group .empty,
+.sidebar-accordion-body > .empty {
+  padding: 4px 10px;
+  color: #8a929c;
+  font-size: 13px;
+}
+
+.shell.theme-dark .sidebar-section-main,
+.shell.theme-dark .sidebar-project-main {
+  color: #aab6c6;
+}
+
+.shell.theme-dark .sidebar-project-main:hover,
+.shell.theme-dark .sidebar-project-main:focus-visible,
+.shell.theme-dark .sidebar-project-row.active .sidebar-project-main {
+  background: transparent;
+}
+
+.shell.theme-dark .sidebar-project-row:hover,
+.shell.theme-dark .sidebar-project-row:focus-within,
+.shell.theme-dark .sidebar-project-row.menu-open,
+.shell.theme-dark .sidebar-project-row.active {
+  background: #2a323d;
+}
+
+.shell.theme-dark .sidebar-section-main span,
+.shell.theme-dark .sidebar-section-main em,
+.shell.theme-dark .sidebar-project-main span,
+.shell.theme-dark .sidebar-project-main em,
+.shell.theme-dark .sidebar-section-more,
+.shell.theme-dark .sidebar-project-more,
+.shell.theme-dark .sidebar-project-create {
+  color: #aab6c6;
+}
+
+.shell.theme-dark .sidebar-section-more:hover,
+.shell.theme-dark .sidebar-project-more:hover,
+.shell.theme-dark .sidebar-project-create:hover {
+  color: #eef3f8;
+  background: #303844;
+}
+
+.sidebar-section-main > span {
+  display: none;
+}
+
+.sidebar-section-main:hover,
+.sidebar-section-main:focus-visible {
+  background: transparent;
+  outline: none;
+}
+
+.sidebar-section-more {
+  color: #9aa1a9;
+  opacity: 0.72;
+}
+
+.sidebar-project-row {
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+}
+
+.sidebar-project-main.project-leaf-main span {
+  color: #56606a;
+}
+
+.sidebar-project-group .project-session-list .session-row {
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.sidebar-project-group .project-session-list .session-item {
+  min-height: 32px;
+  padding: 5px 8px 5px 46px;
+  border-radius: 11px;
+  color: #68717b;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.sidebar-project-group .project-session-list .session-item.active {
+  color: #3f4650;
+  background: transparent;
+}
+
+.sidebar-project-group .project-session-list .session-item .session-title {
+  color: inherit;
+}
+
+.shell.theme-dark .sidebar-section-main:hover,
+.shell.theme-dark .sidebar-section-main:focus-visible {
+  background: transparent;
+}
+
+.shell.theme-dark .sidebar-section-main strong {
+  color: #8f96a3;
+}
+
+.shell.theme-dark .sidebar-project-main strong,
+.shell.theme-dark .sidebar-project-main.project-leaf-main span {
+  color: #d7dee8;
+}
+
+.shell.theme-dark .sidebar-project-group .project-session-list .session-item.active {
+  background: transparent;
+}
+
+.sidebar-accordion-body .session-row:hover,
+.sidebar-accordion-body .session-row:focus-within,
+.sidebar-accordion-body .session-row.menu-open,
+.sidebar-accordion-body .session-row.active {
+  background: #efefed;
+}
+
+.sidebar-accordion-body .session-item:hover,
+.sidebar-accordion-body .session-item:focus-visible,
+.sidebar-accordion-body .session-item.active {
+  background: transparent;
+  outline: none;
+}
+
+.shell.theme-dark .sidebar-accordion-body .session-row:hover,
+.shell.theme-dark .sidebar-accordion-body .session-row:focus-within,
+.shell.theme-dark .sidebar-accordion-body .session-row.menu-open,
+.shell.theme-dark .sidebar-accordion-body .session-row.active {
+  background: #2f3744;
+}
+
+.sidebar-section-row:hover .sidebar-section-more,
+.sidebar-section-row:focus-within .sidebar-section-more,
+.sidebar-section-row.menu-open .sidebar-section-more {
+  opacity: 1;
+}
+
+.sidebar-project-row .sidebar-project-more,
+.sidebar-project-row .sidebar-project-create {
+  opacity: 0.72;
+}
+
+.sidebar-project-row:hover .sidebar-project-more,
+.sidebar-project-row:hover .sidebar-project-create,
+.sidebar-project-row:focus-within .sidebar-project-more,
+.sidebar-project-row:focus-within .sidebar-project-create,
+.sidebar-project-row.menu-open .sidebar-project-more,
+.sidebar-project-row.menu-open .sidebar-project-create {
+  opacity: 1;
+}
+
+.sidebar-accordion-body:not(.sidebar-project-list) .session-item {
+  min-height: 32px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  color: #68717b;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.sidebar-accordion-body:not(.sidebar-project-list) .session-item.active {
+  color: #3f4650;
+}
+
+.sidebar-task-count {
+  align-self: center;
+  justify-self: end;
+  min-width: 18px;
+  height: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  color: #fff;
+  background: #2469df;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.sidebar-task-section-main {
+  grid-template-columns: minmax(0, 1fr) auto 16px;
+  gap: 8px;
+}
+
+.sidebar-task-section-main > strong,
+.sidebar-task-section-main > b,
+.sidebar-task-section-main > em {
+  grid-row: 1;
+}
+
+.sidebar-task-section-main > strong {
+  grid-column: 1;
+}
+
+.sidebar-task-section-main > b {
+  grid-column: 2;
+}
+
+.sidebar-task-section-main > em {
+  grid-column: 3;
+}
+
+.sidebar-task-group-label {
+  padding: 7px 10px 3px;
+  color: #8a93a0;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-delegation-row {
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.sidebar-delegation-item {
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.sidebar-delegation-item .session-title-line,
+.sidebar-delegation-item .session-subtitle,
+.sidebar-delegation-item .session-subtitle span {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sidebar-delegation-item .session-subtitle {
+  display: block;
+  margin-top: 2px;
+  color: #7b8491;
+  font-size: 10px;
+}
+
+.sidebar-delegation-dot {
+  align-self: center;
+  justify-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #9aa4b2;
+}
+
+.sidebar-delegation-dot.status-assigned,
+.sidebar-delegation-dot.status-accepted {
+  background: #f0a000;
+}
+
+.sidebar-delegation-dot.status-running {
+  background: #2469df;
+}
+
+.sidebar-delegation-dot.status-failed {
+  background: #d14343;
+}
+
+.sidebar-project-group .project-session-list .session-more-btn,
+.sidebar-accordion-body:not(.sidebar-project-list) .session-more-btn {
+  color: #9aa1a9;
+}
+
+.sidebar-section-main em,
+.sidebar-section-more,
+.sidebar-project-main em,
+.sidebar-project-row .sidebar-project-more,
+.sidebar-project-row .sidebar-project-create {
+  opacity: 0;
+  transition: opacity 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.sidebar-section-row:hover .sidebar-section-main em,
+.sidebar-section-row:focus-within .sidebar-section-main em,
+.sidebar-section-row.menu-open .sidebar-section-main em,
+.sidebar-section-row:hover .sidebar-section-more,
+.sidebar-section-row:focus-within .sidebar-section-more,
+.sidebar-section-row.menu-open .sidebar-section-more,
+.sidebar-project-row:hover .sidebar-project-main em,
+.sidebar-project-row:focus-within .sidebar-project-main em,
+.sidebar-project-row.menu-open .sidebar-project-main em,
+.sidebar-project-row:hover .sidebar-project-more,
+.sidebar-project-row:hover .sidebar-project-create,
+.sidebar-project-row:focus-within .sidebar-project-more,
+.sidebar-project-row:focus-within .sidebar-project-create,
+.sidebar-project-row.menu-open .sidebar-project-more,
+.sidebar-project-row.menu-open .sidebar-project-create {
+  opacity: 1;
+}
+
+.sidebar-project-row.active:not(:hover):not(:focus-within):not(.menu-open) .sidebar-project-main em,
+.sidebar-project-row.active:not(:hover):not(:focus-within):not(.menu-open) .sidebar-project-more,
+.sidebar-project-row.active:not(:hover):not(:focus-within):not(.menu-open) .sidebar-project-create {
+  opacity: 0;
+}
+
+/* Cool gray sidebar hover tone matched to the provided reference. */
+.shell.theme-light .sidebar .icon-btn:hover,
+.shell.theme-light .sidebar .tab-btn:hover,
+.shell.theme-light .sidebar .tab-btn.active,
+.shell.theme-light .sidebar .sidebar-search-trigger:hover,
+.shell.theme-light .sidebar .sidebar-search-trigger:focus-visible,
+.shell.theme-light .sidebar .sidebar-root-main:hover,
+.shell.theme-light .sidebar .sidebar-root-main:focus-visible,
+.shell.theme-light .sidebar .sidebar-back-row:hover,
+.shell.theme-light .sidebar .sidebar-back-row:focus-visible,
+.shell.theme-light .sidebar .sidebar-mode-row:hover,
+.shell.theme-light .sidebar .sidebar-mode-row:focus-visible,
+.shell.theme-light .sidebar .sidebar-workspace-row:hover,
+.shell.theme-light .sidebar .sidebar-workspace-row:focus-visible,
+.shell.theme-light .sidebar .sidebar-project-new:hover,
+.shell.theme-light .sidebar .sidebar-project-new:focus-visible,
+.shell.theme-light .sidebar .sidebar-project-row:hover,
+.shell.theme-light .sidebar .sidebar-project-row:focus-within,
+.shell.theme-light .sidebar .sidebar-project-row.menu-open,
+.shell.theme-light .sidebar .sidebar-project-row.active,
+.shell.theme-light .sidebar .sidebar-accordion-body .session-row:hover,
+.shell.theme-light .sidebar .sidebar-accordion-body .session-row:focus-within,
+.shell.theme-light .sidebar .sidebar-accordion-body .session-row.menu-open,
+.shell.theme-light .sidebar .sidebar-accordion-body .session-row.active,
+.shell.theme-light .sidebar .account-card:hover,
+.shell.theme-light .sidebar .account-card:focus-visible,
+.shell.theme-light .sidebar .account-area.is-open .account-card {
+  background: #e7edef;
+}
+
+.shell.theme-light .sidebar .sidebar-root-more:hover,
+.shell.theme-light .sidebar .sidebar-section-more:hover,
+.shell.theme-light .sidebar .sidebar-project-more:hover,
+.shell.theme-light .sidebar .sidebar-project-create:hover,
+.shell.theme-light .sidebar .session-more-btn:hover {
+  background: #dce5e8;
+}
+
+.shell.theme-light .sidebar-project-main strong,
+.shell.theme-light .sidebar-project-main.project-leaf-main span,
+.shell.theme-light .sidebar-project-group .project-session-list .session-item,
+.shell.theme-light .sidebar-project-group .project-session-list .session-item .session-title,
+.shell.theme-light .sidebar-accordion-body:not(.sidebar-project-list) .session-item,
+.shell.theme-light .sidebar-accordion-body:not(.sidebar-project-list) .session-title {
+  color: #2f363d;
+}
+
+.shell.theme-light .sidebar-project-group .project-session-list .session-item.active,
+.shell.theme-light .sidebar-accordion-body:not(.sidebar-project-list) .session-item.active {
+  color: #272d33;
+}
+
+.shell.theme-dark .sidebar-section-main strong {
+  color: #b9c5d4;
+}
+
+.shell.theme-dark .sidebar-project-group .project-session-list .session-item,
+.shell.theme-dark .sidebar-project-group .project-session-list .session-item .session-title,
+.shell.theme-dark .sidebar-accordion-body:not(.sidebar-project-list) .session-item,
+.shell.theme-dark .sidebar-accordion-body:not(.sidebar-project-list) .session-title {
+  color: #d8e1ec;
+}
+
+.shell.theme-dark .sidebar-project-group .project-session-list .session-item.active,
+.shell.theme-dark .sidebar-project-group .project-session-list .session-item.active .session-title,
+.shell.theme-dark .sidebar-accordion-body:not(.sidebar-project-list) .session-item.active,
+.shell.theme-dark .sidebar-accordion-body:not(.sidebar-project-list) .session-item.active .session-title {
+  color: #f4f7fb;
+}
+
+.shell.theme-light .sidebar .tab-btn.active {
+  color: #145bd8;
+}
+
+.shell.theme-light .sidebar .tab-btn.active .nav-icon,
+.shell.theme-light .sidebar .tab-btn.active svg {
+  color: #145bd8;
+  stroke: currentColor;
+}

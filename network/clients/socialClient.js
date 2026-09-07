@@ -92,6 +92,109 @@ export class SocialClient {
     return this.request(state, '/api/social/capabilities');
   }
 
+  emojiFavorites(state) {
+    return this.request(state, '/api/social/emoji-favorites');
+  }
+
+  uploadEmojiFavorite(state, favoriteId, { kind = 'image', value = '', filename = 'sticker', contentType = 'image/png', sha256 = '', sortOrder = 0, body } = {}) {
+    const route = `/api/social/emoji-favorites/${encodeURIComponent(favoriteId)}`;
+    const serverUrl = normalizeBaseUrl(state?.server_url || process.env.JANUS_AUTH_URL || '');
+    return this.http.request(joinUrl(serverUrl, route), { method: 'PUT', route, headers: {
+      accept: 'application/json', authorization: state?.access_token ? `Bearer ${state.access_token}` : '',
+      'content-type': 'application/octet-stream', 'x-janus-emoji-kind': kind === 'unicode' ? 'unicode' : 'image', 'x-janus-emoji-value': encodeURIComponent(value), 'x-janus-filename': encodeURIComponent(filename),
+      'x-janus-content-type': contentType, 'x-janus-file-sha256': sha256, 'x-janus-sort-order': String(sortOrder || 0),
+    }, body, timeoutMs: socialFileRequestTimeoutMs(), errorMessage: '收藏表情上传失败。' });
+  }
+
+  downloadEmojiFavorite(state, favoriteId) {
+    const route = `/api/social/emoji-favorites/${encodeURIComponent(favoriteId)}`;
+    const serverUrl = normalizeBaseUrl(state?.server_url || process.env.JANUS_AUTH_URL || '');
+    return this.http.request(joinUrl(serverUrl, route), { method: 'GET', route, responseType: 'arrayBuffer', headers: {
+      accept: 'application/octet-stream', authorization: state?.access_token ? `Bearer ${state.access_token}` : '',
+    }, timeoutMs: socialFileRequestTimeoutMs(), errorMessage: '收藏表情下载失败。' });
+  }
+
+  deleteEmojiFavorite(state, favoriteId) {
+    return this.request(state, `/api/social/emoji-favorites/${encodeURIComponent(favoriteId)}`, { method: 'DELETE' });
+  }
+
+  reorderEmojiFavorites(state, ids = []) {
+    return this.request(state, '/api/social/emoji-favorites/order', { method: 'PATCH', body: { ids } });
+  }
+
+  organizationResearchPolicy(state, organizationId) {
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/policy`);
+  }
+
+  enableOrganizationResearch(state, organizationId, payload = {}) {
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/policy`, {
+      method: 'PUT', body: { ...payload, socialCapability: 'organization-message-research-v1' },
+    });
+  }
+
+  acquireOrganizationResearchLease(state, organizationId, payload = {}) {
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/lease`, {
+      method: 'POST', body: { ...payload, socialCapability: 'organization-message-research-v1' },
+    });
+  }
+
+  organizationResearchChanges(state, organizationId, { cursor = 0, limit = 200, deviceId = '', leaseToken = '' } = {}) {
+    const params = new URLSearchParams({
+      capability: 'organization-message-research-v1', cursor: String(cursor || 0), limit: String(limit || 200),
+      deviceId: String(deviceId || ''), leaseToken: String(leaseToken || ''),
+    });
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/changes?${params.toString()}`);
+  }
+
+  organizationResearchContext(state, organizationId, sourceKind, messageId, { deviceId = '', leaseToken = '' } = {}) {
+    const params = new URLSearchParams({ deviceId: String(deviceId || ''), leaseToken: String(leaseToken || '') });
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/context/${encodeURIComponent(sourceKind)}/${encodeURIComponent(messageId)}?${params.toString()}`);
+  }
+
+  uploadOrganizationResearchAudit(state, organizationId, payload = {}) {
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/audits`, {
+      method: 'POST', body: payload,
+    });
+  }
+
+  organizationResearchAudits(state, organizationId, { scope = 'self', before = '', limit = 50 } = {}) {
+    const params = new URLSearchParams({ scope, limit: String(limit || 50) });
+    if (before) params.set('before', before);
+    return this.request(state, `/api/organizations/${encodeURIComponent(organizationId)}/research/audits?${params.toString()}`);
+  }
+
+  uploadUBuddyOrganizationEvolutionTrace(state, payload = {}) {
+    return this.request(state, '/api/ubuddy/organization-evolution/traces', {
+      method: 'POST', body: { ...payload, capability: 'ubuddy-organization-evolution-v1' },
+    });
+  }
+
+  uBuddyOrganizationEvolutionOverview(state) {
+    return this.request(state, '/api/ubuddy/organization-evolution/overview?capability=ubuddy-organization-evolution-v1');
+  }
+
+  uBuddyOrganizationEvolutionActivePolicy(state) {
+    return this.request(state, '/api/ubuddy/organization-evolution/active-policy?capability=ubuddy-organization-evolution-v1');
+  }
+
+  uBuddyOrganizationEvolutionActivate(state, policyVersionId, payload = {}) {
+    return this.request(state, `/api/ubuddy/organization-evolution/policies/${encodeURIComponent(policyVersionId)}/activate`, {
+      method: 'POST', body: { ...payload, capability: 'ubuddy-organization-evolution-v1' },
+    });
+  }
+
+  uBuddyOrganizationEvolutionDisable(state, payload = {}) {
+    return this.request(state, '/api/ubuddy/organization-evolution/disable', {
+      method: 'POST', body: { ...payload, capability: 'ubuddy-organization-evolution-v1' },
+    });
+  }
+
+  uBuddyOrganizationEvolutionHealth(state, payload = {}) {
+    return this.request(state, '/api/ubuddy/organization-evolution/health', {
+      method: 'POST', body: { ...payload, capability: 'ubuddy-organization-evolution-v1' },
+    });
+  }
+
   ownUBuddyCapabilityProfile(state) {
     return this.request(state, '/api/social/ubuddy-profile?capability=ubuddy-capability-profile-v1');
   }
@@ -112,6 +215,51 @@ export class SocialClient {
     return this.request(state, '/api/social/ubuddy-profiles/query', {
       method: 'POST', body: { ...payload, socialCapability: 'ubuddy-capability-profile-v1' },
     });
+  }
+
+  queryRecipientPresence(state, payload = {}) {
+    return this.request(state, '/api/social/presence/query', {
+      method: 'POST', body: { ...payload, socialCapability: 'recipient-presence-gated-dispatch-v1' },
+    });
+  }
+
+  sendCallSignal(state, payload = {}) {
+    return this.request(state, '/api/social/call-signal', { method: 'POST', body: payload });
+  }
+
+  recordVoiceCall(state, payload = {}) {
+    return this.request(state, '/api/social/voice-call/record', {
+      method: 'POST', body: { ...payload, socialCapability: 'voice-call-record-v1' },
+    });
+  }
+
+  leaveVoiceCall(state, payload = {}) {
+    return this.request(state, '/api/social/voice-call/leave', { method: 'POST', body: payload });
+  }
+
+  sendVoiceCallChat(state, payload = {}) {
+    return this.request(state, '/api/social/voice-call/chat', { method: 'POST', body: payload });
+  }
+
+  inviteVoiceCallParticipant(state, payload = {}) {
+    return this.request(state, '/api/social/voice-call/invite', { method: 'POST', body: payload });
+  }
+
+  kickVoiceCallParticipant(state, payload = {}) {
+    return this.request(state, '/api/social/voice-call/kick', { method: 'POST', body: payload });
+  }
+
+  getCallIceServers(state) {
+    return this.request(state, '/api/social/voice-call/ice-servers');
+  }
+
+  getVideoRoomConfig(state, workspaceId = '', { callId = '', groupId = '' } = {}) {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('workspaceId', workspaceId);
+    if (callId) params.set('callId', callId);
+    if (groupId) params.set('groupId', groupId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(state, `/api/social/video-room/config${query}`);
   }
 
   async streamSocialEvents(state, { cursor = 0, signal = null, onEvent = null } = {}) {
@@ -165,7 +313,7 @@ export class SocialClient {
 
   setConversationPreference(state, payload = {}) {
     return this.request(state, '/api/social/conversation-preferences', {
-      method: 'POST', body: { ...payload, socialCapability: 'conversation-inbox-archive-v1' },
+      method: 'POST', body: { ...payload, socialCapability: 'conversation-inbox-archive-v1,conversation-list-remove-v1' },
     });
   }
 
@@ -271,6 +419,12 @@ export class SocialClient {
   sendChatGroupMessage(state, groupId, payload = {}) {
     return this.request(state, `/api/chat-groups/${encodeURIComponent(groupId)}/messages`, {
       method: 'POST', body: { ...payload, socialCapability: 'chat-groups-v2' },
+    });
+  }
+
+  markChatGroupRead(state, groupId, payload = {}) {
+    return this.request(state, `/api/chat-groups/${encodeURIComponent(groupId)}/read`, {
+      method: 'POST', body: { ...payload, socialCapability: 'chat-groups-v2,chat-group-receipts-v1' },
     });
   }
 
@@ -434,6 +588,12 @@ export class SocialClient {
   updateMessage(state, messageId, payload = {}) {
     return this.request(state, `/api/social/messages/${encodeURIComponent(messageId)}`, {
       method: 'PATCH', body: { ...payload, socialCapability: 'account-social-direct-v1' },
+    });
+  }
+
+  toggleMessageReaction(state, messageId, payload = {}) {
+    return this.request(state, `/api/social/messages/${encodeURIComponent(messageId)}/reactions`, {
+      method: 'POST', body: { ...payload, socialCapability: 'account-social-direct-v1,message-reactions-v1' },
     });
   }
 

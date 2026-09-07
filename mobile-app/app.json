@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Janus Mobile",
+    "slug": "janus-mobile",
+    "version": "0.1.0",
+    "scheme": "janusmobile",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": true }
+  }
+}

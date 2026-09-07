@@ -1,9 +1,12 @@
 import crypto from 'node:crypto';
 
+import { normalizeMessageReactionMetadata } from '../../../../../src/shared/messageReactions.js';
+
 import { route } from '../../../../../network/server/express.js';
 import { apiError } from '../../../errors.mjs';
 import { inTransaction } from '../../../db.mjs';
 import { normalizeMentionEntities } from '../../../../../src/shared/contracts/mentions.js';
+import { passwordValidationMessage } from '../../../../../src/shared/passwordPolicy.js';
 import {
   delegationTransitionAllowed,
   isDelegationStatus,
@@ -62,7 +65,7 @@ async function ensurePersonalAccountWorkspaceMembership(db, userId, userRow = nu
   );
 }
 
-async function ensureOrganizationAccountWorkspace(db, organization, userId = '', role = 'member') {
+async function ensureOrganizationAccountWorkspace(db, organization, userId = '', role = 'member', memberships = []) {
   if (!organization?.id) throw apiError('organization_not_found', '组织不存在。', 404);
   const workspaceId = organizationAccountWorkspaceId(organization.id);
   await db.query(
@@ -82,11 +85,11 @@ async function ensureOrganizationAccountWorkspace(db, organization, userId = '',
       [workspaceId, userId, workspaceRole],
     );
   }
-  await syncOrganizationAccountPrincipal(db, organization, userId ? [{
+  await syncOrganizationAccountPrincipal(db, organization, memberships.length ? memberships : (userId ? [{
     userId,
     role,
     status: 'active',
-  }] : []);
+  }] : []));
   return workspaceId;
 }
 
@@ -360,24 +363,35 @@ async function organizationPayload(db, row = {}, viewerUserId = '') {
     db,
     `SELECT membership.role AS organization_role,membership.display_name_override,membership.joined_at,
             users.id,users.email,users.display_name,users.display_name AS account_display_name,
-            users.username,users.avatar_url,users.role,users.email_verified,COALESCE(remark.remark,'') AS contact_remark
+            users.username,users.avatar_url,users.role,users.email_verified,COALESCE(remark.remark,'') AS contact_remark,
+            presence.last_seen_at
      FROM contact_organization_members membership
      JOIN users ON users.id = membership.user_id
      LEFT JOIN social_contact_remarks remark ON remark.owner_user_id=$2 AND remark.target_user_id=membership.user_id
+     LEFT JOIN (
+       SELECT user_id,max(last_seen_at) AS last_seen_at FROM user_presence GROUP BY user_id
+     ) presence ON presence.user_id=membership.user_id
      WHERE membership.organization_id = $1
      ORDER BY CASE WHEN membership.role = 'owner' THEN 0 ELSE 1 END,
        lower(CASE WHEN membership.display_name_override<>'' THEN membership.display_name_override ELSE users.display_name END),lower(coalesce(users.username,''))`,
     [row.id, viewerUserId],
-  )).map((member) => ({
+  )).map((member) => {
+    const lastSeenAt = member.last_seen_at ? toIso(member.last_seen_at) : '';
+    return {
     role: normalizeOrganizationRole(member.organization_role),
     joinedAt: toIso(member.joined_at),
     displayNameOverride: member.display_name_override || '',
+    online: Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= 45_000),
+    lastSeenAt,
     user: {
       ...publicUser({ ...member, display_name: member.display_name_override || member.display_name }),
       accountDisplayName: member.account_display_name || '',
       remark: member.contact_remark || '',
+      online: Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= 45_000),
+      lastSeenAt,
     },
-  }));
+  };
+  });
   return {
     id: row.id,
     organizationNumber: row.organization_number,
@@ -405,16 +419,17 @@ async function organizationAction(db, userId, payload = {}, { config = {} } = {}
     JOIN contact_organization_members membership ON membership.organization_id = organization.id
     WHERE organization.id = $1 AND membership.user_id = $2`, [organizationId, userId]);
   if (!context) throw apiError('organization_not_found', '组织不存在或你已不在该组织中。', 404);
-  if (['update_invitation_code', 'reset_invitation_code'].includes(action)
+  if (['rename', 'update_invitation_code', 'reset_invitation_code'].includes(action)
     && normalizeOrganizationRole(context.current_user_role) !== 'owner') {
-    throw apiError('organization_owner_required', '只有组织创建者可以修改邀请码。', 403);
+    throw apiError('organization_owner_required', action === 'rename' ? '只有组织创建者可以修改组织名称。' : '只有组织创建者可以修改邀请码。', 403);
   }
   let secondaryVerification = {};
   if (SENSITIVE_ORGANIZATION_ACTIONS.has(action)) {
     secondaryVerification = await requireOrganizationSensitiveVerification(db, context, userId, payload, { config });
   }
   let result;
-  if (action === 'set_display_name') result = await updateOrganizationDisplayName(db, context, userId, payload);
+  if (action === 'rename') result = await renameOrganization(db, context, userId, payload);
+  else if (action === 'set_display_name') result = await updateOrganizationDisplayName(db, context, userId, payload);
   else if (action === 'request_exit') result = await requestOrganizationExit(db, context, userId);
   else if (action === 'resolve_exit') result = await resolveOrganizationExit(db, context, userId, payload);
   else if (action === 'validate_invitation_code') result = validateOrganizationInvitationCode(context, payload);
@@ -432,6 +447,18 @@ async function organizationAction(db, userId, payload = {}, { config = {} } = {}
     }
   }
   return { ok: true, ...result, ...secondaryVerification, overview: await friendsOverview(db, userId) };
+}
+
+async function renameOrganization(db, context, userId, payload = {}) {
+  const name = normalizeOrganizationName(payload.name || payload.organizationName || '');
+  if (name === String(context.name || '').trim()) return { organizationId: context.id, name };
+  await db.query(`UPDATE contact_organizations SET name=$1,updated_at=now()
+    WHERE id=$2 AND owner_user_id=$3`, [name, context.id, userId]);
+  const organization = await one(db, 'SELECT * FROM contact_organizations WHERE id=$1', [context.id]);
+  const memberships = await many(db, `SELECT user_id AS "userId",role
+    FROM contact_organization_members WHERE organization_id=$1`, [context.id]);
+  await ensureOrganizationAccountWorkspace(db, organization, '', 'owner', memberships);
+  return { organizationId: context.id, name };
 }
 
 async function updateOrganizationDisplayName(db, context, userId, payload = {}) {
@@ -1017,16 +1044,17 @@ function friendRequestPayload(row, direction) {
 
 function friendshipPayload(row) {
   const lastSeenAt = row.last_seen_at ? toIso(row.last_seen_at) : '';
+  const online = Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= 45_000);
   const remark = String(row.friend_remark || '').trim();
   const friend = publicUser(row);
   return {
     id: row.id,
     status: row.status,
     remark,
-    friend: { ...friend, remark, accountDisplayName: row.account_display_name || friend.displayName || '' },
+    friend: { ...friend, remark, accountDisplayName: row.account_display_name || friend.displayName || '', online, lastSeenAt },
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
-    online: Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= 45_000),
+    online,
     lastSeenAt,
   };
 }
@@ -1112,7 +1140,7 @@ function socialMessagePayload(row) {
     title: row.title || '',
     content: row.content || '',
     status: row.status || 'unread',
-    metadata: publicSocialMessageMetadata(row.metadata_json),
+    metadata: normalizeMessageReactionMetadata(publicSocialMessageMetadata(row.metadata_json)),
     sender,
     recipient,
     createdAt: toIso(row.created_at),
@@ -1391,6 +1419,7 @@ function publicSocialMessageMetadata(value = {}) {
     metadata.attachments = metadata.attachments.slice(0, 20).map((item) => {
       const name = collaborationFilename(item?.filename || item?.name || 'file');
       const publicUrl = (url) => /^https?:\/\//i.test(String(url || '')) ? String(url).slice(0, 4000) : '';
+      const inlineImage = String(item?.value || '').trim();
       return {
         id: String(item?.remote_file_id || item?.remoteFileId || item?.id || '').slice(0, 200),
         remote_file_id: String(item?.remote_file_id || item?.remoteFileId || '').slice(0, 200),
@@ -1405,6 +1434,7 @@ function publicSocialMessageMetadata(value = {}) {
         sha256: String(item?.sha256 || '').slice(0, 128),
         file_url: publicUrl(item?.file_url || item?.fileUrl),
         download_url: publicUrl(item?.download_url),
+        ...(inlineImage.startsWith('data:image/') && inlineImage.length <= 8 * 1024 * 1024 ? { value: inlineImage, url: inlineImage } : {}),
       };
     });
   }
@@ -1592,7 +1622,7 @@ function collaborationMessagePayload(row = {}) {
     kind: normalizeMessageKind(row.kind),
     content: row.content || '',
     sourceEventId: row.source_event_id || '',
-    metadata: publicSocialMessageMetadata(row.metadata_json),
+    metadata: normalizeMessageReactionMetadata(publicSocialMessageMetadata(row.metadata_json)),
     sender: {
       ...publicUser({
         id: row.sender_user_id,
@@ -1686,11 +1716,28 @@ async function collaborationGroupDetail(db, groupId, userId, { markRead = false,
   );
   const publicMessages = messages.filter((message) => !isPrivateTaskWorkspaceMessage(message));
   const taskRows = await many(db, `${delegationSelectSql()} WHERE ad.group_id = $1 ORDER BY ad.created_at ASC`, [groupId]);
+  const groupMetadata = jsonObject(group.metadata_json);
+  const plannedRecipientIds = [...new Set((Array.isArray(groupMetadata.plannedRecipientIds)
+    ? groupMetadata.plannedRecipientIds : []).map((item) => String(item || '').trim()).filter(Boolean))];
+  const activeMemberIds = new Set(members.filter((item) => item.status === 'active').map((item) => String(item.user_id || '')));
+  const plannedUsers = plannedRecipientIds.length
+    ? (await Promise.all(plannedRecipientIds.map((plannedUserId) => one(db,
+        'SELECT id,email,display_name,username,avatar_url,role,email_verified FROM users WHERE id=$1',
+        [plannedUserId],
+      )))).filter(Boolean)
+    : [];
+  const plannedUserById = new Map(plannedUsers.map((plannedUser) => [plannedUser.id, plannedUser]));
+  const plannedParticipants = plannedRecipientIds.map((userId) => plannedUserById.get(userId)).filter(Boolean).map((plannedUser) => ({
+    userId: plannedUser.id,
+    status: activeMemberIds.has(plannedUser.id) ? 'active' : 'awaiting_presence',
+    user: publicUser(plannedUser),
+  }));
   const workspaceRow = await ensureCollaborationGroupWorkspace(db, groupId, { ownerUserId: group.owner_user_id, status: group.status });
   return {
     group: collaborationGroupPayload(group),
     workspace: collaborationGroupWorkspacePayload(workspaceRow, { readOnly: group.status === 'closed' || membership.status !== 'active' }),
     members: members.map(collaborationMemberPayload),
+    plannedParticipants,
     messages: publicMessages.map(collaborationMessagePayload),
     tasks: await delegationPayloadsForViewer(db, taskRows, userId),
   };
@@ -1746,7 +1793,8 @@ function normalizeCode(code) {
 
 function validatePassword(password) {
   const value = String(password || '');
-  if (value.length < 8) throw apiError('invalid_password', '密码至少需要 8 位。', 400);
+  const message = passwordValidationMessage(value);
+  if (message) throw apiError('invalid_password', message, 400);
   return value;
 }
 

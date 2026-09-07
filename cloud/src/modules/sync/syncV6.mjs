@@ -18,6 +18,9 @@ import {
 
 const MAX_BATCH_CHANGES = 2_000;
 const MAX_CHANGE_BYTES = 512 * 1024;
+const MESSAGE_MEMORY_TURN_BINDING_CAPABILITY = 'message-memory-turn-binding-v1';
+const SERVER_REQUIRED_DATABASE_CAPABILITIES = DATABASE_SYNC_CAPABILITIES
+  .filter((capability) => capability !== MESSAGE_MEMORY_TURN_BINDING_CAPABILITY);
 const canonicalEmployeeAgentFamilyId = (value = '') => canonicalGeneralAgentId(canonicalPptAgentId(value));
 const IMMUTABLE_TYPES = new Set([
   'agent_version', 'user_agent_skill_version', 'memory_document_version', 'message', 'transcript', 'task_event', 'conversation_alias',
@@ -58,7 +61,7 @@ export function createSyncV6Service({ pool, apiError, env = process.env }) {
       maximumProtocolVersion: DATABASE_SYNC_PROTOCOL_VERSION,
       minimumAppVersion: DATABASE_SYNC_MINIMUM_APP_VERSION,
       minimumMigrationId: DATABASE_SYNC_MINIMUM_MIGRATION_ID,
-      requiredCapabilities: DATABASE_SYNC_CAPABILITIES,
+      requiredCapabilities: SERVER_REQUIRED_DATABASE_CAPABILITIES,
     });
   };
   const requireCompatibility = (clientContract = {}) => {
@@ -95,6 +98,11 @@ export function createSyncV6Service({ pool, apiError, env = process.env }) {
       const changes = legacyCompat ? v5BatchToChanges(input) : input.changes;
       if (!Array.isArray(changes) || changes.length > MAX_BATCH_CHANGES) {
         throw apiError('sync_batch_too_large', `A Sync V6 batch may contain at most ${MAX_BATCH_CHANGES} changes.`, 413);
+      }
+      if (changes.some((change) => String(change?.entityType || change?.entity_type || '') === 'message')
+        && !effectiveClient.capabilities.includes(MESSAGE_MEMORY_TURN_BINDING_CAPABILITY)) {
+        throw apiError('sync_client_incompatible',
+          `Desktop database contract cannot upload message without ${MESSAGE_MEMORY_TURN_BINDING_CAPABILITY}.`, 409);
       }
       const batchId = text(input.batch?.id || input.batchId || `syncv6_${crypto.randomUUID()}`, 255);
       const payloadHash = sha256(stableJson({ accountId, deviceId: grant.deviceId, changes }));
@@ -384,6 +392,7 @@ async function applyChange(client, grant, batchId, change, { legacyCompat, apiEr
   let { entityType, entityId, payload } = change;
   const generated = [];
   let conversationReferenceRedirected = false;
+  let serverCanonicalizedPayload = false;
   payload = ownedPayload(entityType, payload, grant.userId);
   if (ACCOUNT_WORKSPACE_SCOPED_TYPES.has(entityType)) {
     const accountWorkspaceId = field(payload, 'account_workspace_id', 'accountWorkspaceId')
@@ -636,6 +645,64 @@ async function applyChange(client, grant, batchId, change, { legacyCompat, apiEr
       }
     }
   }
+  if (entityType === 'message') {
+    const requestedMemoryId = field(payload, 'memory_id', 'memoryId');
+    if (requestedMemoryId) {
+      const mappedDocumentId = await documentIdForCloudKey(client, grant.userId, requestedMemoryId);
+      const canonicalMemoryId = await canonicalDocumentId(
+        client,
+        grant.userId,
+        mappedDocumentId || requestedMemoryId,
+      );
+      const memory = (await client.query(`SELECT id,user_agent_instance_id FROM cloud_memory_documents_v3
+        WHERE user_id=$1 AND id=$2`, [grant.userId, canonicalMemoryId])).rows[0];
+      if (!memory) return conflictResult(await preserveConflict(
+        client, grant, batchId, { ...change, entityId, payload }, 'message_memory_dependency_missing', null,
+      ));
+      const messageInstanceId = await canonicalInstanceId(
+        client,
+        grant.userId,
+        field(payload, 'agent_instance_id', 'agentInstanceId'),
+      );
+      if (messageInstanceId && messageInstanceId !== String(memory.user_agent_instance_id || '')) {
+        return conflictResult(await preserveConflict(
+          client, grant, batchId, { ...change, entityId, payload }, 'message_memory_owner_mismatch', null,
+        ));
+      }
+      if (canonicalMemoryId !== requestedMemoryId) serverCanonicalizedPayload = true;
+      payload = setField(payload, 'memory_id', canonicalMemoryId);
+    }
+    const contextSpaceId = field(payload, 'context_space_id', 'contextSpaceId');
+    if (contextSpaceId) {
+      const context = (await client.query(`SELECT id,user_agent_instance_id,memory_document_id
+        FROM cloud_agent_context_spaces WHERE user_id=$1 AND id=$2`, [grant.userId, contextSpaceId])).rows[0];
+      if (!context) return conflictResult(await preserveConflict(
+        client, grant, batchId, { ...change, entityId, payload }, 'message_context_dependency_missing', null,
+      ));
+      const messageInstanceId = await canonicalInstanceId(
+        client,
+        grant.userId,
+        field(payload, 'agent_instance_id', 'agentInstanceId'),
+      );
+      if (messageInstanceId && messageInstanceId !== String(context.user_agent_instance_id || '')) {
+        return conflictResult(await preserveConflict(
+          client, grant, batchId, { ...change, entityId, payload }, 'message_context_owner_mismatch', null,
+        ));
+      }
+      let canonicalMemoryId = field(payload, 'memory_id', 'memoryId');
+      if (!canonicalMemoryId && context.memory_document_id) {
+        canonicalMemoryId = String(context.memory_document_id);
+        payload = setField(payload, 'memory_id', canonicalMemoryId);
+        serverCanonicalizedPayload = true;
+      }
+      if (canonicalMemoryId && context.memory_document_id
+        && canonicalMemoryId !== String(context.memory_document_id || '')) {
+        return conflictResult(await preserveConflict(
+          client, grant, batchId, { ...change, entityId, payload }, 'message_memory_context_mismatch', null,
+        ));
+      }
+    }
+  }
   if (entityType === 'chat_context_state') {
     const requestedSessionId = field(payload, 'session_id', 'sessionId');
     const sessionId = batchContext?.conversationRedirects?.get(requestedSessionId) || requestedSessionId;
@@ -788,7 +855,7 @@ async function applyChange(client, grant, batchId, change, { legacyCompat, apiEr
   }
 
   const contentHash = entityContentHash(entityType,
-    conversationReferenceRedirected ? { ...change, contentHash: '' } : change, payload);
+    conversationReferenceRedirected || serverCanonicalizedPayload ? { ...change, contentHash: '' } : change, payload);
   const existingV8 = grant.accountId ? (await client.query(`SELECT * FROM cloud_sync_entities_v8
     WHERE account_id=$1 AND entity_type=$2 AND entity_id=$3 FOR UPDATE`, [grant.accountId, entityType, entityId])).rows[0] : null;
   const existingV6 = (await client.query(`SELECT * FROM cloud_sync_entities_v6
@@ -1515,13 +1582,14 @@ function changePayload(row = {}) {
     minimumProtocolVersion: minimumProtocolForEntity(row.entity_type), requiredCapabilities, payload: row.payload_json || {} };
 }
 function requiredCapabilitiesForEntity(entityType = '') {
-  const required = new Set(DATABASE_SYNC_CAPABILITIES);
+  const required = new Set(SERVER_REQUIRED_DATABASE_CAPABILITIES);
   if (ACCOUNT_WORKSPACE_SCOPED_TYPES.has(entityType)) required.add('account-workspace-v2');
   if (['conversation', 'conversation_alias', 'message', 'chat_context_state'].includes(entityType)) required.add('conversation-identity-phase6');
   if (['user_agent_instance', 'agent_instance_alias', 'agent_context_space', 'agent_context_state', 'memory_document'].includes(entityType)) {
     required.add('canonical-agent-identity-v1');
   }
   if (entityType === 'conversation_alias') required.add('agent-single-window-continuity-v1');
+  if (entityType === 'message') required.add(MESSAGE_MEMORY_TURN_BINDING_CAPABILITY);
   return [...required].sort();
 }
 function minimumProtocolForEntity(entityType = '') {

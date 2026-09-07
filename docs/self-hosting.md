@@ -1,4 +1,4 @@
-# 🌍 Self-hosting Janus
+# 🖥️ Self-hosting Janus
 
 [English](self-hosting.md) · [简体中文](self-hosting.zh-CN.md) · [Back to README](../README.md)
 

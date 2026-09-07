@@ -1,7 +1,6 @@
 const packageJson = require('../package.json');
 const path = require('node:path');
 const applyTrialProviderBundle = require('./electron-builder.trial-provider.cjs');
-const applyDistributionProfile = require('./electron-builder.distribution.cjs');
 
 const build = structuredClone(packageJson.build || {});
 const projectRoot = path.resolve(__dirname, '..');
@@ -31,6 +30,7 @@ build.files = [
   'assets/**/*',
   'node_modules/@openai/codex/**/*',
   'node_modules/@openai/codex-darwin-arm64/**/*',
+  'node_modules/katex/**/*',
   'package.json',
   '!node_modules/@openai/codex-linux-*/**/*',
   '!node_modules/@openai/codex-win32-*/**/*',
@@ -41,4 +41,4 @@ build.files = [
   '!**/*.pyo',
 ];
 
-module.exports = applyDistributionProfile(applyTrialProviderBundle(build, { projectRoot }), { projectRoot });
+module.exports = applyTrialProviderBundle(build, { projectRoot });

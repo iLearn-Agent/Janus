@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import { test } from 'node:test';
 
 import { newDb } from 'pg-mem';
 
-import { migrate } from '../src/db.mjs';
 import { createFileObjectService, objectKeyForUser } from '../src/modules/sync/fileObjects.mjs';
 import { createMemoryObjectStore, createS3ObjectStore } from '../src/modules/sync/objectStore.mjs';
 import { createSyncV6Service } from '../src/modules/sync/syncV6.mjs';
@@ -14,12 +14,17 @@ test('Sync V6 file objects use per-user SHA paths and verify size/checksum befor
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
-  await migrate(pool);
+  await pool.query(`CREATE TABLE users(
+    id text PRIMARY KEY,display_name text NOT NULL DEFAULT '',created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  for (const file of ['008_evolution_authority.sql', '010_cluster_market_evolution.sql', '013_multi_memory_task_security.sql',
+    '017_cloud_sync_v6.sql', '026_sync_v7_reliability.sql']) {
+    await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  await pool.query(await pgMemMigration('../migrations/076_account_principal_isolation.sql'));
   await pool.query(`INSERT INTO account_workspaces(id,workspace_kind,name,status)
     VALUES('workspace_personal','personal','个人空间','active')`);
-  await pool.query(`INSERT INTO users(id,email,display_name,username,password_hash) VALUES
-    ('user_a','user_a@example.test','User A','user_a','test-hash'),
-    ('user_b','user_b@example.test','User B','user_b','test-hash')`);
+  await pool.query("INSERT INTO users(id) VALUES('user_a'),('user_b')");
   const store = createMemoryObjectStore();
   const service = createFileObjectService({ pool, objectStore: store, apiError });
   const body = Buffer.from('verified cloud file');
@@ -64,14 +69,13 @@ test('Sync V6 file objects use per-user SHA paths and verify size/checksum befor
     (error) => error.code === 'file_size_invalid');
 });
 
-test('S3 client URLs use the public endpoint while server verification uses the private endpoint', async () => {
+test('S3 HEAD requests enable and sign checksum responses', async () => {
   const sha256 = crypto.createHash('sha256').update('signed checksum head').digest('hex');
   const checksum = Buffer.from(sha256, 'hex').toString('base64');
   let request = null;
   const store = createS3ObjectStore({
     env: {
-      JANUS_S3_ENDPOINT: 'https://s3-internal.example.test',
-      JANUS_S3_PUBLIC_ENDPOINT: 'https://s3-public.example.test',
+      JANUS_S3_ENDPOINT: 'https://s3.example.test',
       JANUS_S3_REGION: 'us-east-1',
       JANUS_S3_BUCKET: 'janus-test',
       JANUS_S3_ACCESS_KEY_ID: 'test-access-key',
@@ -86,15 +90,7 @@ test('S3 client URLs use the public endpoint while server verification uses the 
     },
   });
 
-  const initiated = await store.initiateUpload({
-    objectKey: `users/user_a/sha256/${sha256.slice(0, 2)}/${sha256}`,
-    sha256,
-    sizeBytes: 42,
-    contentType: 'text/plain',
-  });
-  assert.equal(new URL(initiated.url).host, 's3-public.example.test');
   const head = await store.headObject({ objectKey: `users/user_a/sha256/${sha256.slice(0, 2)}/${sha256}` });
-  assert.equal(new URL(request.url).host, 's3-internal.example.test');
   assert.equal(request.options.method, 'HEAD');
   assert.equal(request.options.headers['x-amz-checksum-mode'], 'ENABLED');
   assert.match(new URL(request.url).searchParams.get('X-Amz-SignedHeaders') || '', /x-amz-checksum-mode/);
@@ -104,3 +100,8 @@ test('S3 client URLs use the public endpoint while server verification uses the 
 });
 
 function apiError(code, message, status) { const error = new Error(message); error.code = code; error.status = status; return error; }
+
+async function pgMemMigration(relativeUrl) {
+  const sql = await fs.readFile(new URL(relativeUrl, import.meta.url), 'utf8');
+  return sql.split(/--\s*requires-real-postgres-tail:[^\r\n]*/i, 1)[0];
+}

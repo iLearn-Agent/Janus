@@ -17,12 +17,17 @@ export function createHttpClient({
     responseType = 'json',
     errorMessage = null,
     timeoutMs: requestTimeoutMs = timeoutMs,
+    signal = null,
   } = {}) {
     const effectiveTimeoutMs = Math.max(0, Number(requestTimeoutMs || 0));
     const controller = effectiveTimeoutMs > 0 ? new AbortController() : null;
+    const abortFromExternal = () => controller?.abort(signal?.reason || new Error('Request cancelled.'));
+    if (controller && signal?.aborted) abortFromExternal();
+    else if (controller) signal?.addEventListener?.('abort', abortFromExternal, { once: true });
     const timeout = controller
       ? setTimeout(() => controller.abort(new Error(`Request timed out after ${effectiveTimeoutMs}ms.`)), effectiveTimeoutMs)
       : null;
+    const requestSignal = controller?.signal || signal || undefined;
     try {
       const response = await fetchImpl(url, {
         method,
@@ -32,11 +37,12 @@ export function createHttpClient({
           ...headers,
         },
         body,
-        signal: controller?.signal,
+        signal: requestSignal,
       });
       return parseResponse(response, { method, url, route, responseType, errorMessage });
     } finally {
       if (timeout) clearTimeout(timeout);
+      if (controller) signal?.removeEventListener?.('abort', abortFromExternal);
     }
   }
 

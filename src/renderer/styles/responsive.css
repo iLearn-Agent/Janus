@@ -1,0 +1,127 @@
+@media (max-width: 980px) {
+  .settings-shell {
+    grid-template-columns: 164px minmax(0, 1fr);
+  }
+
+  .settings-shell > .main,
+  .settings-shell .settings-workspace,
+  .settings-shell .settings-section-view {
+    min-width: 0;
+  }
+
+  .settings-sidebar {
+    gap: 12px;
+    padding: 14px 10px;
+    overflow-x: hidden;
+  }
+
+  .settings-back-btn,
+  .settings-search-box {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .settings-nav-item {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 3px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .settings-nav-item strong {
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  html[lang^='zh'] .settings-nav-item strong {
+    max-width: 4em;
+  }
+
+  .settings-section-view {
+    padding: 26px 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-sidebar {
+    display: grid;
+    grid-template-columns: minmax(132px, auto) minmax(180px, 1fr);
+    gap: 10px;
+    height: auto;
+    max-height: 42vh;
+    padding: 10px;
+    border-right: 0;
+    border-bottom: 1px solid #dfe5ed;
+  }
+
+  .settings-nav-group {
+    grid-column: 1 / -1;
+  }
+
+  .settings-nav-list {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .settings-nav-item strong,
+  html[lang^='zh'] .settings-nav-item strong {
+    max-width: none;
+  }
+
+  .settings-section-view {
+    padding: 20px 14px;
+  }
+
+  .settings-section-head h1 {
+    font-size: 23px;
+  }
+
+  .archived-session-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .archived-session-actions {
+    justify-content: flex-start;
+    padding-left: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-nav-list,
+  .settings-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .account-hero-row,
+  .settings-row,
+  .settings-row.action-row,
+  .account-info-card .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-hero-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .model-service-mode-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-row.action-row .btn {
+    width: 100%;
+  }
+}

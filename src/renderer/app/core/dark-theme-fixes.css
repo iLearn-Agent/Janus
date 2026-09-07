@@ -1,0 +1,1047 @@
+/* Final dark-theme surface layer.
+ *
+ * Feature styles are intentionally modular and several late UI additions use
+ * light fallbacks. Keep this file last in style.css so dark surfaces cannot be
+ * reverted by a later light-only card, menu, or dialog rule.
+ */
+
+.shell.theme-dark {
+  --dark-surface-raised: #1b2531;
+  --dark-surface-soft: #202c3a;
+  --dark-surface-hover: #293749;
+  --dark-border-soft: #344459;
+  --dark-text-primary: #edf3fb;
+  --dark-text-secondary: #aebccd;
+}
+
+/* uBuddy task reference picker and the selected “new task” card. */
+.shell.theme-dark .task-reference-trigger,
+.shell.theme-dark .task-reference-menu,
+.shell.theme-dark .project-mention-menu,
+.shell.theme-dark .project-mention-search,
+.shell.theme-dark .project-mention-group,
+.shell.theme-dark .project-mention-entity,
+.shell.theme-dark .project-reference-option,
+.shell.theme-dark .project-reference-disabled,
+.shell.theme-dark .project-mention-help {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+}
+
+.shell.theme-dark .task-reference-new,
+.shell.theme-dark .composer-reference-card.is-task,
+.shell.theme-dark .message-task-reference > span {
+  border-color: rgba(122, 167, 255, 0.32);
+  color: #c7dcff;
+  background: rgba(62, 104, 174, 0.24);
+}
+
+.shell.theme-dark .composer-reference-card,
+.shell.theme-dark .message-project-references > span {
+  border-color: rgba(128, 153, 191, 0.28);
+  color: var(--dark-text-primary);
+  background: rgba(55, 72, 96, 0.72);
+}
+
+.shell.theme-dark .composer-reference-card.is-memory {
+  border-color: rgba(166, 132, 226, 0.3);
+  background: rgba(104, 72, 156, 0.24);
+}
+
+.shell.theme-dark .composer-reference-card small,
+.shell.theme-dark .message-task-reference small,
+.shell.theme-dark .message-project-references small,
+.shell.theme-dark .task-reference-new small,
+.shell.theme-dark .task-reference-group small,
+.shell.theme-dark .task-reference-group code,
+.shell.theme-dark .task-reference-empty,
+.shell.theme-dark .project-mention-group > header small,
+.shell.theme-dark .project-mention-entity small,
+.shell.theme-dark .project-mention-empty,
+.shell.theme-dark .project-reference-option small {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .task-reference-group + .task-reference-group,
+.shell.theme-dark .project-mention-group + .project-mention-group,
+.shell.theme-dark .project-mention-search {
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.shell.theme-dark .task-reference-group > header,
+.shell.theme-dark .project-mention-group > header strong,
+.shell.theme-dark .project-mention-entity strong {
+  color: #dce6f3;
+}
+
+.shell.theme-dark .task-reference-new:hover,
+.shell.theme-dark .task-reference-group > button:hover,
+.shell.theme-dark .project-mention-entity:hover,
+.shell.theme-dark .project-mention-entity:focus-visible,
+.shell.theme-dark .project-mention-entity.is-active,
+.shell.theme-dark .project-reference-option:hover,
+.shell.theme-dark .project-reference-option.is-active,
+.shell.theme-dark .project-reference-disabled:hover {
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-hover);
+}
+
+.shell.theme-dark .project-mention-entity.is-selected,
+.shell.theme-dark .project-reference-option.is-selected {
+  background: rgba(62, 104, 174, 0.32);
+}
+
+.shell.theme-dark .project-mention-help {
+  border-color: rgba(148, 163, 184, 0.18);
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .project-mention-help > span:first-child,
+.shell.theme-dark .project-mention-help kbd {
+  color: #c8d7ea;
+}
+
+.shell.theme-dark .project-mention-help kbd {
+  border-color: #465970;
+  background: #111923;
+}
+
+.shell.theme-dark .project-mention-search > span {
+  color: #a9c9f5;
+  background: #26364a;
+}
+
+.shell.theme-dark .project-mention-search input {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: #111923;
+}
+
+/* Model-produced task, routing, and collaboration cards. */
+.shell.theme-dark .natural-multi-task-card,
+.shell.theme-dark .ubuddy-published-task-card,
+.shell.theme-dark .ubuddy-selection-card,
+.shell.theme-dark .ubuddy-collaboration-plan-card,
+.shell.theme-dark .collaboration-task-chip,
+.shell.theme-dark .external-delegation-delivery-review,
+.shell.theme-dark .external-delegation-submitted-snapshot {
+  border-color: rgba(122, 153, 198, 0.26);
+  color: var(--dark-text-primary);
+  background: linear-gradient(145deg, rgba(31, 43, 58, 0.98), rgba(25, 35, 47, 0.98));
+  box-shadow: none;
+}
+
+.shell.theme-dark .ubuddy-published-task-public-nodes,
+.shell.theme-dark .external-delegation-run-actions {
+  border-color: rgba(122, 153, 198, 0.22);
+  color: var(--dark-text-secondary);
+  background: rgba(55, 75, 104, 0.28);
+}
+
+.shell.theme-dark .ubuddy-published-task-public-nodes article,
+.shell.theme-dark .ubuddy-selection-list > span,
+.shell.theme-dark .ubuddy-collaboration-assignments article,
+.shell.theme-dark .external-delegation-public-preview,
+.shell.theme-dark .external-delegation-submitted-content {
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-soft);
+}
+
+.shell.theme-dark .natural-multi-task-card header small,
+.shell.theme-dark .natural-multi-task-card footer span,
+.shell.theme-dark .natural-multi-task-card time,
+.shell.theme-dark .ubuddy-published-task-card > p,
+.shell.theme-dark .ubuddy-published-task-card-progress,
+.shell.theme-dark .ubuddy-selection-card > p,
+.shell.theme-dark .ubuddy-selection-card > header span,
+.shell.theme-dark .ubuddy-collaboration-plan-card > header span,
+.shell.theme-dark .ubuddy-collaboration-plan-card > footer > span,
+.shell.theme-dark .ubuddy-collaboration-assignments article p,
+.shell.theme-dark .ubuddy-collaboration-assignments article small {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .ubuddy-published-task-card-head > b,
+.shell.theme-dark .ubuddy-selection-list.is-selected > span {
+  color: #8fb5ff;
+}
+
+.shell.theme-dark .context-usage-warning {
+  border-color: rgba(224, 172, 78, 0.42);
+  color: #f2c36f;
+  background: rgba(146, 91, 18, 0.24);
+}
+
+.shell.theme-dark .context-usage-warning.is-critical {
+  border-color: rgba(235, 120, 126, 0.42);
+  color: #ffadb2;
+  background: rgba(153, 48, 55, 0.24);
+}
+
+.shell.theme-dark .context-usage-warning.is-provider_compacted {
+  border-color: rgba(104, 163, 226, 0.42);
+  color: #acd4ff;
+  background: rgba(48, 101, 158, 0.24);
+}
+
+.shell.theme-dark .context-usage-warning button {
+  background: rgba(17, 25, 35, 0.58);
+}
+
+/* uBuddy task workspace: every nested card follows the dark surface system. */
+.shell.theme-dark .local-task-workspace,
+.shell.theme-dark .local-task-workspace-body {
+  color: var(--dark-text-primary);
+  background: #121820;
+}
+
+.shell.theme-dark .local-task-workspace-summary,
+.shell.theme-dark .local-task-workspace > .network-task-workspace-tabs,
+.shell.theme-dark .local-task-workspace-composer {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: #171e27;
+}
+
+.shell.theme-dark .network-task-workspace-tabs button { color: var(--dark-text-secondary); }
+.shell.theme-dark .network-task-workspace-tabs button:hover,
+.shell.theme-dark .network-task-workspace-tabs button:focus-visible {
+  color: #c7dcff;
+  background: rgba(62, 104, 174, .26);
+}
+.shell.theme-dark .network-task-workspace-tabs button.active {
+  color: #d9e8ff;
+  background: rgba(69, 113, 184, .36);
+}
+
+.shell.theme-dark .local-task-workspace-summary h2,
+.shell.theme-dark .collaboration-status-card strong,
+.shell.theme-dark .local-task-active-nodes b,
+.shell.theme-dark .network-task-flow-view strong,
+.shell.theme-dark .network-task-flow-columns article strong,
+.shell.theme-dark .local-task-workspace-empty strong { color: var(--dark-text-primary); }
+
+.shell.theme-dark .local-task-workspace-summary small,
+.shell.theme-dark .local-task-workspace-summary p,
+.shell.theme-dark .local-task-workspace-loading,
+.shell.theme-dark .local-task-workspace-loading strong,
+.shell.theme-dark .collaboration-status-card header span,
+.shell.theme-dark .collaboration-status-card p,
+.shell.theme-dark .local-task-active-nodes small,
+.shell.theme-dark .local-task-workspace-message header,
+.shell.theme-dark .local-task-workspace-empty,
+.shell.theme-dark .local-task-technical-details > summary,
+.shell.theme-dark .network-task-result-view p,
+.shell.theme-dark .network-task-flow-view > header span,
+.shell.theme-dark .network-task-flow-columns h3,
+.shell.theme-dark .network-task-flow-columns h3 b,
+.shell.theme-dark .network-task-flow-columns article span,
+.shell.theme-dark .network-task-flow-columns article p,
+.shell.theme-dark .network-task-flow-empty { color: var(--dark-text-secondary); }
+
+.shell.theme-dark .collaboration-status-card,
+.shell.theme-dark .local-task-active-nodes span,
+.shell.theme-dark .local-task-technical-details,
+.shell.theme-dark .local-task-workspace-message,
+.shell.theme-dark .network-task-result-view,
+.shell.theme-dark .network-task-flow-columns > section,
+.shell.theme-dark .network-task-flow-columns article,
+.shell.theme-dark .local-task-workspace-composer textarea {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+  box-shadow: none;
+}
+
+.shell.theme-dark .local-task-active-nodes span,
+.shell.theme-dark .local-task-technical-details,
+.shell.theme-dark .network-task-flow-columns > section { background: rgba(32, 44, 58, .82); }
+.shell.theme-dark .network-task-flow-columns article.is-running { border-color: #4f76ad; background: #1c3049; }
+.shell.theme-dark .network-task-flow-columns article.is-completed { border-color: #3f745d; background: #19352c; }
+.shell.theme-dark .network-task-flow-columns article.is-failed,
+.shell.theme-dark .network-task-flow-columns article.is-blocked,
+.shell.theme-dark .local-task-workspace-message.is-failed { border-color: #835052; background: #3a2228; }
+.shell.theme-dark .local-task-workspace-message.mine { border-color: #3d5f91; background: #1b2a3e; }
+
+/* uBuddy cards shown inside conversations, including nested delivery files. */
+.shell.theme-dark .collaboration-run-card,
+.shell.theme-dark .ubuddy-chat-delivery-card,
+.shell.theme-dark .final-deliverable-card,
+.shell.theme-dark .collaboration-progress-participant,
+.shell.theme-dark .collaboration-progress-event,
+.shell.theme-dark .collaboration-task-summary,
+.shell.theme-dark .collaboration-task-summary > section,
+.shell.theme-dark .ubuddy-selection-content {
+  border-color: rgba(122, 153, 198, .26);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+  box-shadow: none;
+}
+
+.shell.theme-dark .ubuddy-chat-task-result-card.is-failed {
+  border-color: rgba(240, 128, 133, .5);
+  box-shadow: inset 3px 0 0 #df7177;
+}
+
+.shell.theme-dark .ubuddy-chat-task-result-card.is-failed > header span,
+.shell.theme-dark .ubuddy-chat-task-result-card.is-failed .ubuddy-chat-delivery-title em {
+  color: #ffadb1;
+  background: rgba(223, 113, 119, .15);
+}
+
+.shell.theme-dark .ubuddy-chat-task-failure-signal {
+  color: #ffc1c4;
+  background: rgba(223, 113, 119, .13);
+}
+
+.shell.theme-dark .ubuddy-chat-task-files > article {
+  border-color: rgba(122, 153, 198, .24);
+  background: var(--dark-surface-soft);
+}
+
+.shell.theme-dark .ubuddy-chat-task-file-icon { background: #26364a; }
+
+.shell.theme-dark .ubuddy-chat-task-files > article > span button {
+  border-color: rgba(122, 153, 198, .28);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+}
+
+.shell.theme-dark .collaboration-run-head strong,
+.shell.theme-dark .collaboration-objective strong,
+.shell.theme-dark .collaboration-active-nodes > strong,
+.shell.theme-dark .collaboration-milestones > strong,
+.shell.theme-dark .collaboration-task-nodes > strong,
+.shell.theme-dark .collaboration-active-nodes span,
+.shell.theme-dark .collaboration-milestones b,
+.shell.theme-dark .collaboration-task-nodes b,
+.shell.theme-dark .final-deliverable-card > header strong,
+.shell.theme-dark .final-deliverable-file strong { color: var(--dark-text-primary); }
+
+.shell.theme-dark .collaboration-run-head small,
+.shell.theme-dark .collaboration-objective p,
+.shell.theme-dark .collaboration-objective ul,
+.shell.theme-dark .collaboration-progress-meta,
+.shell.theme-dark .collaboration-task-transparency > span,
+.shell.theme-dark .collaboration-task-nodes small,
+.shell.theme-dark .collaboration-task-nodes em,
+.shell.theme-dark .collaboration-milestones small,
+.shell.theme-dark .final-deliverable-card > p,
+.shell.theme-dark .final-deliverable-file small,
+.shell.theme-dark .final-deliverable-body summary,
+.shell.theme-dark .collaboration-technical-details > summary { color: var(--dark-text-secondary); }
+
+.shell.theme-dark .final-deliverable-file,
+.shell.theme-dark .final-deliverable-file button {
+  border-color: rgba(148, 163, 184, .2);
+  color: #cbd8e8;
+  background: var(--dark-surface-soft);
+}
+
+.shell.theme-dark .network-task-result-view {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell.theme-dark .final-delivery-status,
+.shell.theme-dark .final-delivery-status.is-delivered,
+.shell.theme-dark .final-delivery-status.is-closed,
+.shell.theme-dark .final-delivery-status.is-failed {
+  border: 0;
+  background: var(--ui-surface-subtle);
+  box-shadow: none;
+}
+
+.shell.theme-dark .collaboration-progress-node { border-color: var(--dark-surface-raised); }
+.shell.theme-dark .collaboration-progress-event > header em { color: #f2c36f; background: rgba(146, 91, 18, .28); }
+.shell.theme-dark .collaboration-task-summary > header small,
+.shell.theme-dark .ubuddy-peer-thread-label { color: #9dbdff; }
+
+/* uBuddy allocation and delivery details include nested light cards. */
+.shell.theme-dark .ubuddy-allocation-card.is-waiting_for_agents {
+  border-color: rgba(224, 172, 78, 0.34);
+  background: rgba(105, 72, 25, 0.24);
+}
+
+.shell.theme-dark .ubuddy-allocation-card.is-sleeping {
+  border-color: rgba(122, 153, 198, 0.28);
+  background: rgba(35, 49, 70, 0.82);
+}
+
+.shell.theme-dark .ubuddy-allocation-requirements > strong,
+.shell.theme-dark .ubuddy-allocation-candidates > strong,
+.shell.theme-dark .ubuddy-assigned-agents > strong,
+.shell.theme-dark .ubuddy-waiting-requirements > strong,
+.shell.theme-dark .ubuddy-team-participants > strong,
+.shell.theme-dark .ubuddy-team-nodes > summary,
+.shell.theme-dark .ubuddy-delivery-review > summary,
+.shell.theme-dark .ubuddy-delivery-review-body {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .ubuddy-allocation-candidates > div,
+.shell.theme-dark .ubuddy-assigned-agents article,
+.shell.theme-dark .ubuddy-team-participants article,
+.shell.theme-dark .ubuddy-team-nodes > div,
+.shell.theme-dark .ubuddy-assignment-pending,
+.shell.theme-dark .ubuddy-delivery-versions > article,
+.shell.theme-dark .final-delivery-conclusion,
+.shell.theme-dark .final-delivery-steps li {
+  border-color: rgba(148, 163, 184, 0.18);
+  color: var(--dark-text-secondary);
+  background: rgba(17, 24, 36, 0.5);
+}
+
+.shell.theme-dark .ubuddy-assigned-agents article > header > span,
+.shell.theme-dark .ubuddy-team-participants article > div b,
+.shell.theme-dark .ubuddy-team-nodes > div strong,
+.shell.theme-dark .final-delivery-conclusion strong {
+  color: #d8e2ef;
+}
+
+.shell.theme-dark .ubuddy-task-permission-badge {
+  border-color: rgba(148, 163, 184, .24);
+  color: #c8d5e5;
+  background: rgba(32, 44, 58, .9);
+}
+
+.shell.theme-dark .ubuddy-task-permission-badge.is-full-access {
+  border-color: rgba(224, 119, 119, .38);
+  color: #f0aaaa;
+  background: rgba(102, 39, 43, .38);
+}
+
+.shell.theme-dark .ubuddy-task-permission-badge.is-auto-approve {
+  border-color: rgba(91, 177, 132, .35);
+  color: #9bd7b7;
+  background: rgba(31, 89, 61, .36);
+}
+
+.shell.theme-dark .ubuddy-delivery-versions article pre,
+.shell.theme-dark .ubuddy-task-strip-row footer,
+.shell.theme-dark .ubuddy-task-strip-row footer button {
+  border-color: rgba(148, 163, 184, .18);
+  color: #c8d5e5;
+  background: rgba(17, 24, 36, .56);
+}
+
+.shell.theme-dark .ubuddy-task-strip-counts button:hover,
+.shell.theme-dark .ubuddy-task-strip-row footer button:hover {
+  color: #d9e8ff;
+  background: rgba(48, 66, 91, .82);
+}
+
+.shell.theme-dark .ubuddy-delivery-quality-warning {
+  border-color: rgba(224, 172, 78, .34);
+  color: #e6c37d;
+  background: rgba(105, 72, 25, .3);
+}
+
+.shell.theme-dark .ubuddy-wake-reason {
+  color: #a8d4bb;
+  background: rgba(31, 89, 61, .28);
+}
+
+.shell.theme-dark .ubuddy-failure-report {
+  border-color: rgba(224, 119, 119, .3);
+  background: rgba(102, 39, 43, .28);
+}
+
+.shell.theme-dark .ubuddy-failure-report > summary,
+.shell.theme-dark .ubuddy-failure-report > div { color: #e7a6aa; }
+
+.shell.theme-dark .final-delivery-steps i {
+  color: #c8d5e5;
+  background: #263446;
+}
+
+/* Late avatar and employee Memory additions previously overrode dark styles. */
+.shell.theme-dark .avatar-viewer-modal,
+.shell.theme-dark .avatar-cropper-modal {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: #151e29;
+}
+
+.shell.theme-dark .avatar-viewer-frame,
+.shell.theme-dark .avatar-cropper-live-preview {
+  background: #243247;
+}
+
+.shell.theme-dark .avatar-viewer-close,
+.shell.theme-dark .avatar-cropper-modal header button {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .avatar-viewer-close:hover,
+.shell.theme-dark .avatar-cropper-modal header button:hover {
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-hover) !important;
+}
+
+.shell.theme-dark .employee-memory-context-detail,
+.shell.theme-dark .employee-memory-context-detail > summary,
+.shell.theme-dark .employee-memory-readonly-messages article,
+.shell.theme-dark .employee-memory-readonly-files code {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+}
+
+.shell.theme-dark .employee-memory-context-detail > summary {
+  background: var(--dark-surface-soft);
+}
+
+.shell.theme-dark .employee-memory-context-detail > summary strong,
+.shell.theme-dark .employee-memory-readonly-files > strong {
+  color: #dce6f3;
+}
+
+.shell.theme-dark .employee-memory-context-detail > summary small,
+.shell.theme-dark .employee-memory-context-detail > summary em,
+.shell.theme-dark .employee-memory-readonly-messages article time,
+.shell.theme-dark .employee-memory-readonly-messages article p,
+.shell.theme-dark .employee-memory-readonly-files code {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .employee-memory-boundary {
+  color: #b8c7da;
+  background: rgba(69, 91, 122, 0.34);
+}
+
+/* Final attachment rules are appended late in chat.css. */
+.shell.theme-dark .composer .attachment-chip.compact-attachment-tile:not(.is-image),
+.shell.theme-dark .message-attachments.compact-attachment-strip .message-attachment-card:not(.compact-message-image) {
+  color: var(--dark-text-primary);
+  background: #1f2937;
+}
+
+.shell.theme-dark .composer .attachment-chip.compact-attachment-tile:not(.is-image) .attachment-preview,
+.shell.theme-dark .message-attachments.compact-attachment-strip .message-attachment-card:not(.compact-message-image) .message-attachment-icon {
+  background: #111827;
+}
+
+.shell.theme-dark .composer .attachment-chip.compact-attachment-tile:not(.is-image) .attachment-main strong,
+.shell.theme-dark .message-attachments.compact-attachment-strip .message-attachment-card:not(.compact-message-image) strong {
+  color: #f1f5f9;
+}
+
+.shell.theme-dark .composer .attachment-chip.compact-attachment-tile:not(.is-image) .attachment-main small,
+.shell.theme-dark .message-attachments.compact-attachment-strip .message-attachment-card:not(.compact-message-image) small,
+.shell.theme-dark .composer .attachment-chip.compact-attachment-tile:not(.is-image)::after {
+  color: #cbd5e1;
+}
+
+/* Settings page dark-mode and default-organization polish. */
+.settings-native-select {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.startup-workspace-select .settings-select-trigger {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+  padding-right: 44px;
+}
+
+.startup-workspace-select .settings-select-trigger > i,
+.startup-workspace-select .settings-select-trigger > span {
+  min-width: 0;
+}
+
+.startup-workspace-select .settings-select-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell.theme-dark .settings-workspace,
+.shell.theme-dark .settings-section-view {
+  background: var(--app-shell-bg);
+}
+
+.shell.theme-dark .settings-search-box {
+  border-color: var(--dark-border-soft) !important;
+  color: #9fb0c4 !important;
+  background: var(--dark-surface-raised) !important;
+}
+
+.shell.theme-dark .settings-search-box input {
+  border: 0 !important;
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .settings-search-box input::placeholder {
+  color: #9aa8ba !important;
+}
+
+.shell.theme-dark .settings-search-box input:-webkit-autofill,
+.shell.theme-dark .settings-search-box input:-webkit-autofill:hover,
+.shell.theme-dark .settings-search-box input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--dark-text-primary);
+  box-shadow: 0 0 0 1000px var(--dark-surface-raised) inset !important;
+}
+
+.shell.theme-dark .upload-compliance-card {
+  border-color: #303a49 !important;
+  background: #141b24 !important;
+}
+
+.shell.theme-dark .upload-compliance-head {
+  border-color: #303a49 !important;
+  background: var(--dark-surface-raised) !important;
+}
+
+.shell.theme-dark .upload-compliance-summary,
+.shell.theme-dark .upload-compliance-list,
+.shell.theme-dark .upload-compliance-row {
+  border-color: #303a49 !important;
+  background: #141b24;
+}
+
+.shell.theme-dark .upload-compliance-summary > span,
+.shell.theme-dark .upload-compliance-note,
+.shell.theme-dark .upload-compliance-empty {
+  border-color: var(--dark-border-soft) !important;
+  color: #c8d3e0 !important;
+  background: var(--dark-surface-raised) !important;
+}
+
+.shell.theme-dark .upload-compliance-error {
+  border-color: rgba(239, 105, 105, 0.44) !important;
+  color: #ffb4b4 !important;
+  background: rgba(127, 29, 29, 0.24) !important;
+}
+
+/* Keep dark-mode search fields visually unified across the app. */
+.shell.theme-dark .settings-search-box,
+.shell.theme-dark .directory-add-search label,
+.shell.theme-dark .network-search-form,
+.shell.theme-dark .recent-search,
+.shell.theme-dark .recent-view-search,
+.shell.theme-dark .plugins-search,
+.shell.theme-dark .evolution-search,
+.shell.theme-dark .talent-directory-search,
+.shell.theme-dark .talent-directory-view .talent-directory-search,
+.shell.theme-dark .workspace-project-search,
+.shell.theme-dark .project-mention-search,
+.shell.theme-dark .chat-search-modal-input {
+  border-color: var(--dark-border-soft) !important;
+  color: #9fb0c4 !important;
+  background: var(--dark-surface-raised) !important;
+}
+
+.shell.theme-dark .settings-search-box input,
+.shell.theme-dark .directory-add-search label input,
+.shell.theme-dark .network-search-form input,
+.shell.theme-dark .recent-search input,
+.shell.theme-dark .recent-view-search input,
+.shell.theme-dark .plugins-search input,
+.shell.theme-dark .evolution-search input,
+.shell.theme-dark .talent-directory-search input,
+.shell.theme-dark .talent-directory-view .talent-directory-search input,
+.shell.theme-dark .workspace-project-search input,
+.shell.theme-dark .project-mention-search input,
+.shell.theme-dark input.chat-search-modal-input {
+  border-color: transparent !important;
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .settings-search-box input::placeholder,
+.shell.theme-dark .directory-add-search label input::placeholder,
+.shell.theme-dark .network-search-form input::placeholder,
+.shell.theme-dark .recent-search input::placeholder,
+.shell.theme-dark .recent-view-search input::placeholder,
+.shell.theme-dark .plugins-search input::placeholder,
+.shell.theme-dark .evolution-search input::placeholder,
+.shell.theme-dark .talent-directory-search input::placeholder,
+.shell.theme-dark .talent-directory-view .talent-directory-search input::placeholder,
+.shell.theme-dark .workspace-project-search input::placeholder,
+.shell.theme-dark .project-mention-search input::placeholder,
+.shell.theme-dark input.chat-search-modal-input::placeholder {
+  color: #9aa8ba !important;
+}
+
+.shell.theme-dark .settings-search-box input:-webkit-autofill,
+.shell.theme-dark .directory-add-search label input:-webkit-autofill,
+.shell.theme-dark .network-search-form input:-webkit-autofill,
+.shell.theme-dark .recent-search input:-webkit-autofill,
+.shell.theme-dark .recent-view-search input:-webkit-autofill,
+.shell.theme-dark .plugins-search input:-webkit-autofill,
+.shell.theme-dark .evolution-search input:-webkit-autofill,
+.shell.theme-dark .talent-directory-search input:-webkit-autofill,
+.shell.theme-dark .workspace-project-search input:-webkit-autofill,
+.shell.theme-dark .project-mention-search input:-webkit-autofill {
+  -webkit-text-fill-color: var(--dark-text-primary);
+  box-shadow: 0 0 0 1000px var(--dark-surface-raised) inset !important;
+}
+
+/* Keep mention labels crisp on every dark message-bubble variant. */
+.shell.theme-dark .message .social-mention-token {
+  color: #cbe2ff !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-weight: 800;
+}
+
+/* The shared chat layout is loaded after the base theme and otherwise brings
+ * the light-mode blue user bubble back into dark mode. Keep all message
+ * surfaces and their text in the same low-glare dark palette. */
+.shell.theme-dark .chat-view.with-messages .message.user .message-body {
+  border-color: #34485f !important;
+  color: #dbe7f7 !important;
+  background: #202c3a !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .chat-view.with-messages .social-group-message.assistant .message-body {
+  border-color: #303f51 !important;
+  color: #d8e2ef !important;
+  background: #1b2633 !important;
+  box-shadow: none !important;
+}
+
+/* Skills & Plugins: late feature rules still contain light-only fallbacks.
+ * Keep every nested surface in the same hierarchy instead of leaving white
+ * rows, inputs, menus, or status cards inside the dark page. */
+.shell.theme-dark .plugins-view {
+  color: var(--dark-text-primary);
+  background: var(--app-shell-bg) !important;
+}
+
+.shell.theme-dark .plugins-head h1,
+.shell.theme-dark .plugins-section-toggle-copy strong,
+.shell.theme-dark .codex-plugin-row strong,
+.shell.theme-dark .attached-skill-row strong,
+.shell.theme-dark .plugin-detail-drawer h2,
+.shell.theme-dark .plugin-detail-drawer h3,
+.shell.theme-dark .plugin-detail-facts strong {
+  color: var(--dark-text-primary) !important;
+}
+
+.shell.theme-dark .plugins-summary-card,
+.shell.theme-dark .plugins-collapsible-section,
+.shell.theme-dark .plugins-filter,
+.shell.theme-dark .plugins-grid .plugin-card,
+.shell.theme-dark .plugin-detail-drawer,
+.shell.theme-dark .plugin-detail-facts span {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .plugins-collapsible-body,
+.shell.theme-dark .plugins-section-head,
+.shell.theme-dark .codex-marketplace-list,
+.shell.theme-dark .codex-marketplace-list > div,
+.shell.theme-dark .codex-plugin-row,
+.shell.theme-dark .attached-skill-list,
+.shell.theme-dark .attached-skill-row,
+.shell.theme-dark .plugin-card {
+  border-color: var(--dark-border-soft) !important;
+}
+
+.shell.theme-dark .codex-plugin-row {
+  background: var(--dark-surface-raised) !important;
+}
+
+.shell.theme-dark .plugins-section-toggle:not(:disabled):hover,
+.shell.theme-dark .plugins-section-toggle:not(:disabled):focus-visible,
+.shell.theme-dark .plugins-pagination button:not(:disabled):hover,
+.shell.theme-dark .plugins-pagination button:not(:disabled):focus-visible,
+.shell.theme-dark .attached-skill-row-actions button:hover,
+.shell.theme-dark .codex-marketplace-list button:hover {
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-hover) !important;
+}
+
+.shell.theme-dark .plugins-summary-progress,
+.shell.theme-dark .plugin-install-progress > i,
+.shell.theme-dark .plugin-card-tags span,
+.shell.theme-dark .plugin-detail-tags span,
+.shell.theme-dark .plugin-detail-list span {
+  color: var(--dark-text-secondary) !important;
+  background: var(--dark-surface-soft) !important;
+}
+
+.shell.theme-dark .plugins-pagination button,
+.shell.theme-dark .plugin-compact-btn.secondary,
+.shell.theme-dark .plugins-catalog-controls select,
+.shell.theme-dark .attached-skill-import input,
+.shell.theme-dark .attached-skill-assignment-controls select,
+.shell.theme-dark .attached-skill-row-actions button,
+.shell.theme-dark .attached-skill-apply:disabled,
+.shell.theme-dark .attached-skill-assignments > span,
+.shell.theme-dark .plugin-detail-close {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-secondary) !important;
+  background: var(--dark-surface-soft) !important;
+}
+
+.shell.theme-dark .codex-marketplace-add label,
+.shell.theme-dark .codex-marketplace-list small,
+.shell.theme-dark .codex-plugin-row header span,
+.shell.theme-dark .codex-plugin-row small,
+.shell.theme-dark .codex-plugin-row p,
+.shell.theme-dark .attached-skill-inbox-hint,
+.shell.theme-dark .attached-skill-import label,
+.shell.theme-dark .attached-skill-row > header p,
+.shell.theme-dark .attached-skill-assignments > span,
+.shell.theme-dark .plugins-pagination,
+.shell.theme-dark .plugins-section-toggle-copy small,
+.shell.theme-dark .plugins-section-toggle-meta small,
+.shell.theme-dark .plugins-section-toggle-meta b {
+  color: var(--dark-text-secondary) !important;
+}
+
+.shell.theme-dark .codex-marketplace-add input {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-primary) !important;
+  background: #111923 !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .codex-marketplace-add input::placeholder,
+.shell.theme-dark .attached-skill-import input::placeholder {
+  color: #8797aa;
+}
+
+.shell.theme-dark .codex-plugin-mark,
+.shell.theme-dark .mention-avatar.tone-plugin {
+  border-color: rgba(83, 196, 151, 0.28) !important;
+  color: #79d6ac !important;
+  background: rgba(32, 112, 82, 0.22) !important;
+}
+
+.shell.theme-dark .codex-plugin-row header .codex-plugin-recommended {
+  color: #8ce2ba !important;
+  background: rgba(32, 112, 82, 0.28) !important;
+}
+
+.shell.theme-dark .codex-plugin-conflict {
+  border-color: #d98162 !important;
+  color: #f1b39d !important;
+  background: rgba(151, 65, 38, 0.22) !important;
+}
+
+.shell.theme-dark .plugin-icon-tile,
+.shell.theme-dark .plugin-card-icon {
+  border-color: var(--dark-border-soft) !important;
+  background: var(--dark-surface-soft) !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .plugin-menu {
+  border-color: var(--dark-border-soft) !important;
+  background: #16202b !important;
+}
+
+.shell.theme-dark .plugin-menu button {
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-soft) !important;
+}
+
+.shell.theme-dark .plugin-menu button:hover,
+.shell.theme-dark .plugin-menu button:focus-visible {
+  background: var(--dark-surface-hover) !important;
+}
+
+/* Janus mobile app page: the preview is a UI surface too, not a permanently
+ * white image. Dark mode now reaches the logo, platform cards, and phone UI. */
+.shell.theme-dark .janus-app-view {
+  color: var(--dark-text-primary);
+  background: var(--app-shell-bg);
+}
+
+.shell.theme-dark .janus-app-header {
+  border-color: var(--dark-border-soft);
+}
+
+.shell.theme-dark .janus-app-mark,
+.shell.theme-dark .janus-app-platforms > span {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-primary);
+  background: var(--dark-surface-raised);
+}
+
+.shell.theme-dark .janus-app-header p,
+.shell.theme-dark .janus-app-copy > p,
+.shell.theme-dark .janus-app-platforms em,
+.shell.theme-dark .janus-app-device-splash small {
+  color: var(--dark-text-secondary);
+}
+
+.shell.theme-dark .janus-app-copy > span {
+  color: #79d6ac;
+}
+
+.shell.theme-dark .janus-app-status {
+  border-color: rgba(83, 196, 151, 0.34);
+  color: #8ce2ba;
+  background: rgba(32, 112, 82, 0.22);
+}
+
+.shell.theme-dark .janus-app-device {
+  border-color: #5d6877;
+  background: #080b0f;
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.48), inset 0 0 0 1px #000;
+}
+
+.shell.theme-dark .janus-app-device-screen {
+  color: #edf3fb;
+  background: linear-gradient(160deg, #182330 0%, #101720 72%);
+}
+
+.shell.theme-dark .janus-app-device-splash > img {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.shell.theme-dark .janus-app-home-indicator {
+  background: #d4dde8;
+}
+
+/* Mobile/Feishu connection cards in Settings. */
+.shell.theme-dark .feishu-status-badge {
+  border-color: var(--dark-border-soft);
+  color: var(--dark-text-secondary);
+  background: var(--dark-surface-soft);
+}
+
+.shell.theme-dark .feishu-status-badge.is-connected,
+.shell.theme-dark .settings-inline-success {
+  border-color: rgba(83, 196, 151, 0.36);
+  color: #8ce2ba;
+  background: rgba(32, 112, 82, 0.22);
+}
+
+.shell.theme-dark .feishu-status-badge.is-error,
+.shell.theme-dark .feishu-status-badge.is-paused,
+.shell.theme-dark .settings-inline-error {
+  border-color: rgba(239, 105, 105, 0.4);
+  color: #ffb4b4;
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.shell.theme-dark .feishu-switch-control {
+  border-color: #526176;
+  background: #3c495a;
+}
+
+.shell.theme-dark .feishu-switch-control::after {
+  background: #dce6f3;
+}
+
+.shell.theme-dark .feishu-config-form input[type='text'],
+.shell.theme-dark .feishu-config-form input[type='password'],
+.shell.theme-dark .feishu-config-form select,
+.shell.theme-dark .feishu-binding-code code {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-primary) !important;
+  background: #111923 !important;
+}
+
+.shell.theme-dark .feishu-config-form input::placeholder {
+  color: #8797aa !important;
+}
+
+.shell.theme-dark .feishu-status-row small,
+.shell.theme-dark .feishu-binding-state small,
+.shell.theme-dark .feishu-binding-code small,
+.shell.theme-dark .feishu-binding-code > span {
+  color: var(--dark-text-secondary) !important;
+}
+
+/* Employee/Skills directory cards are reused by the skills marketplace and
+ * detail drawer. Normalize their nested white sub-cards as well. */
+.shell.theme-dark .talent-directory-card,
+.shell.theme-dark .talent-directory-card-menu > div,
+.shell.theme-dark .talent-candidate-hero,
+.shell.theme-dark .talent-candidate-skill > span,
+.shell.theme-dark .employee-context-panel,
+.shell.theme-dark .employee-profile-editor,
+.shell.theme-dark .employee-profile-form,
+.shell.theme-dark .employee-overview-grid article,
+.shell.theme-dark .employee-growth-section,
+.shell.theme-dark .employee-skill-choice,
+.shell.theme-dark .employee-market-version,
+.shell.theme-dark .employee-market-version-body,
+.shell.theme-dark .employee-skill-change-list > article,
+.shell.theme-dark .employee-skill-advanced,
+.shell.theme-dark .employee-memory-drawer {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.shell.theme-dark .employee-context-panel > summary,
+.shell.theme-dark .employee-context-list,
+.shell.theme-dark .employee-memory-context-detail,
+.shell.theme-dark .employee-memory-context-detail > summary,
+.shell.theme-dark .employee-market-version > summary,
+.shell.theme-dark .employee-overview-grid article.is-primary,
+.shell.theme-dark .employee-skill-choice.is-current,
+.shell.theme-dark .employee-profile-form {
+  background: var(--dark-surface-soft) !important;
+}
+
+.shell.theme-dark .employee-context-list > button,
+.shell.theme-dark .employee-memory-readonly-messages article,
+.shell.theme-dark .employee-memory-document-row > button:first-child > em,
+.shell.theme-dark .employee-memory-protected,
+.shell.theme-dark .employee-skill-combination > header span,
+.shell.theme-dark .employee-market-version > summary em,
+.shell.theme-dark .employee-growth-section > header em,
+.shell.theme-dark .employee-growth-metrics > span,
+.shell.theme-dark .employee-progression-summary,
+.shell.theme-dark .employee-leadership-action-panel,
+.shell.theme-dark .talent-candidate-tags span,
+.shell.theme-dark .talent-directory-compact-tags span {
+  border-color: var(--dark-border-soft) !important;
+  color: var(--dark-text-secondary) !important;
+  background: var(--dark-surface-soft) !important;
+}
+
+.shell.theme-dark .talent-directory-card p,
+.shell.theme-dark .talent-directory-card small,
+.shell.theme-dark .talent-candidate-section p,
+.shell.theme-dark .talent-candidate-skill small,
+.shell.theme-dark .employee-context-list,
+.shell.theme-dark .employee-context-list > button,
+.shell.theme-dark .employee-memory-document-row > button,
+.shell.theme-dark .employee-memory-readonly-messages article,
+.shell.theme-dark .employee-memory-readonly-files code,
+.shell.theme-dark .employee-growth-section p,
+.shell.theme-dark .employee-growth-metrics > span,
+.shell.theme-dark .employee-progression-summary,
+.shell.theme-dark .employee-permission-note {
+  color: var(--dark-text-secondary) !important;
+}
+
+.shell.theme-dark .talent-directory-card-menu button,
+.shell.theme-dark .employee-context-list > button,
+.shell.theme-dark .employee-memory-document-row > button,
+.shell.theme-dark .employee-star-action,
+.shell.theme-dark .employee-drawer-close {
+  color: var(--dark-text-secondary) !important;
+}
+
+.shell.theme-dark .talent-directory-card-menu button:hover,
+.shell.theme-dark .employee-context-list > button:hover,
+.shell.theme-dark .employee-progression-summary:hover,
+.shell.theme-dark .employee-drawer-close:hover {
+  color: var(--dark-text-primary) !important;
+  background: var(--dark-surface-hover) !important;
+}

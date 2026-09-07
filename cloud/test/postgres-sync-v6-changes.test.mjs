@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import { test } from 'node:test';
 
 import { DataType, newDb } from 'pg-mem';
 
-import { migrate } from '../src/db.mjs';
 import { createSyncV6Service } from '../src/modules/sync/syncV6.mjs';
+import { DATABASE_SYNC_CAPABILITIES } from '../../src/shared/databaseEvolutionContract.js';
 
 test('Sync V6 converts complete V5 batches, preserves same-Family instances and Memory, and preserves conflicts', async (t) => {
   const memory = newDb({ autoCreateForeignKeyIndices: true, noAstCoverageCheck: true });
@@ -14,21 +15,44 @@ test('Sync V6 converts complete V5 batches, preserves same-Family instances and 
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
-  await migrate(pool);
+  await pool.query(`CREATE TABLE users(
+    id text PRIMARY KEY,display_name text NOT NULL DEFAULT '',created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  for (const file of [
+    '008_evolution_authority.sql', '010_cluster_market_evolution.sql', '011_employee_authority.sql',
+    '013_multi_memory_task_security.sql', '015_task_memory_encryption.sql', '017_cloud_sync_v6.sql',
+    '020_primary_context_memory.sql', '026_sync_v7_reliability.sql', '030_evidence_source_authority.sql',
+    '072_agent_single_window_continuity.sql',
+  ]) await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  await pool.query(await pgMemMigration('../migrations/040_stage123_authority_closure.sql'));
+  await pool.query(await fs.readFile(new URL('../migrations/043_chat_context_state.sql', import.meta.url), 'utf8'));
+  await pool.query(await pgMemMigration('../migrations/076_account_principal_isolation.sql'));
+  await pool.query(await pgMemMigration('../migrations/078_employee_instance_profile_uniqueness.sql'));
   await pool.query(`INSERT INTO account_workspaces(id,workspace_kind,name,status)
     VALUES('workspace_personal','personal','个人空间','active') ON CONFLICT(id) DO NOTHING`);
-  await pool.query(`INSERT INTO users(id,email,display_name,username,password_hash) VALUES
-    ('user_a','user_a@example.test','User A','user_a','test-hash'),
-    ('user_b','user_b@example.test','User B','user_b','test-hash')`);
+  await pool.query("INSERT INTO users(id) VALUES('user_a'),('user_b')");
   await pool.query(`INSERT INTO cloud_agent_families_v3(
     id,department_id,name,role,status,routable,current_version_id,instance_kind,recruitable,quota_cost
   ) VALUES('family_1','general','Family','agent','active',true,'version_1','employee',true,1)`);
   await pool.query(`INSERT INTO cloud_user_agent_instances_v3(
-    user_id,id,agent_family_id,base_agent_version_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version,
-    personal_evolution_consent,cluster_contribution_consent
-  ) VALUES('user_a','instance_cloud','family_1','version_1','active','employee','active',false,1,'employee_cloud_authority_v1',true,true)`);
+    user_id,id,agent_family_id,base_agent_version_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version
+  ) VALUES('user_a','instance_cloud','family_1','version_1','active','employee','active',false,1,'employee_cloud_authority_v1')`);
   const service = createSyncV6Service({ pool, apiError, env: { JANUS_SYNC_REQUIRE_CLIENT_CONTRACT: '0' } });
   const grantA = { userId: 'user_a', deviceId: 'device_a', scopes: ['sync:*'] };
+
+  const strictService = createSyncV6Service({ pool, apiError, env: { JANUS_SYNC_REQUIRE_CLIENT_CONTRACT: '1' } });
+  const preMessageBindingContract = {
+    contractVersion: 2, appVersion: '1.0.0', syncProtocolVersion: 9, localSchemaVersion: 1,
+    migrationHead: 'janus_clean_slate_identity_v1', appliedMigrationIds: ['janus_clean_slate_identity_v1'],
+    capabilities: DATABASE_SYNC_CAPABILITIES.filter((capability) => capability !== 'message-memory-turn-binding-v1'),
+  };
+  assert.equal(strictService.capabilities(preMessageBindingContract).databaseCompatibility.compatible, true);
+  await assert.rejects(strictService.submitBatch(grantA, {
+    clientContract: preMessageBindingContract, batchId: 'batch_pre_binding_message', changes: [{
+      changeId: 'change_pre_binding_message', entityType: 'message', entityId: 'pre_binding_message',
+      operation: 'upsert', baseRevision: 0, payload: { id: 'pre_binding_message', role: 'user', content: 'blocked' },
+    }],
+  }), (error) => error.code === 'sync_client_incompatible' && error.status === 409);
 
   const first = await service.submitBatch(grantA, v5Batch({
     batchId: 'batch_1', deviceId: 'device_a', instanceId: 'instance_cloud', documentId: 'memory_cloud',
@@ -39,9 +63,8 @@ test('Sync V6 converts complete V5 batches, preserves same-Family instances and 
   assert.ok(Number(first.cursor) > 0);
 
   await pool.query(`INSERT INTO cloud_user_agent_instances_v3(
-    user_id,id,agent_family_id,base_agent_version_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version,payload_json,
-    personal_evolution_consent,cluster_contribution_consent
-  ) VALUES('user_a','instance_other','family_1','version_1','active','employee','active',false,1,'employee_cloud_authority_v1',$1::jsonb,true,true)`, [
+    user_id,id,agent_family_id,base_agent_version_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version,payload_json
+  ) VALUES('user_a','instance_other','family_1','version_1','active','employee','active',false,1,'employee_cloud_authority_v1',$1::jsonb)`, [
     JSON.stringify({ familyInstanceSeq: 2, displayName: 'Family B' }),
   ]);
   const second = await service.submitBatch(grantA, v5Batch({
@@ -195,11 +218,12 @@ test('Sync V6 converts complete V5 batches, preserves same-Family instances and 
 
   await pool.query(`INSERT INTO cloud_agent_families_v3(
     id,department_id,name,role,status,routable,current_version_id,instance_kind,recruitable,quota_cost
-  ) VALUES('ppt_research_scout','ppt_department','Legacy PPT Scout','agent','retired',false,'','unavailable',false,0)`);
+  ) VALUES
+    ('ppt','ppt_department','PPT','agent','active',true,'','employee',true,1),
+    ('ppt_research_scout','ppt_department','Legacy PPT Scout','agent','retired',false,'','unavailable',false,0)`);
   await pool.query(`INSERT INTO cloud_user_agent_instances_v3(
-    user_id,id,agent_family_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version,
-    personal_evolution_consent,cluster_contribution_consent
-  ) VALUES('user_a','legacy_ppt_instance','ppt','active','employee','active',false,4,'employee_cloud_authority_v1',true,true)`);
+    user_id,id,agent_family_id,status,instance_kind,employment_state,quota_exempt,state_revision,policy_version
+  ) VALUES('user_a','legacy_ppt_instance','ppt','active','employee','active',false,4,'employee_cloud_authority_v1')`);
   const legacyPptUpload = await service.submitBatch(grantA, {
     batchId: 'batch_legacy_ppt_upload',
     changes: [
@@ -261,6 +285,65 @@ test('Sync V6 converts complete V5 batches, preserves same-Family instances and 
     WHERE user_id='user_a' AND alias_instance_id='legacy_ppt_instance'`)).rows[0].count), 0,
   'a rejected reverse Agent alias must not be materialized');
 
+  const memoryContext = (await pool.query(`SELECT id FROM cloud_agent_context_spaces
+    WHERE user_id='user_a' AND user_agent_instance_id='instance_cloud'
+      AND memory_document_id='memory_cloud' ORDER BY id LIMIT 1`)).rows[0].id;
+  await pool.query(`INSERT INTO cloud_memory_sync_mappings(
+    owner_user_id,user_agent_instance_id,cloud_key,memory_document_id,status
+  ) VALUES('user_a','instance_cloud','memory_cloud_key','memory_cloud','active')`);
+  const messageWithCloudKey = {
+    changeId: 'change_message_memory_cloud_key', entityType: 'message', entityId: 'message_memory_cloud_key',
+    operation: 'upsert', baseRevision: 0, occurredAt: new Date().toISOString(), contentHash: 'client_hash_for_cloud_key',
+    payload: {
+      id: 'message_memory_cloud_key', conversationId: 'agent_primary', agentInstanceId: 'instance_cloud',
+      memoryId: 'memory_cloud_key', contextSpaceId: memoryContext, role: 'user', content: 'canonical Memory binding',
+      createdAt: new Date().toISOString(),
+    },
+  };
+  const canonicalMessage = await service.submitBatch(grantA, {
+    batchId: 'batch_message_memory_cloud_key', changes: [messageWithCloudKey],
+  });
+  assert.equal(canonicalMessage.conflictCount, 0);
+  assert.equal(canonicalMessage.acceptedChanges[0].payload.memoryId, 'memory_cloud');
+  assert.equal(canonicalMessage.acceptedChanges[0].payload.memory_id, 'memory_cloud');
+  assert.notEqual(canonicalMessage.acceptedChanges[0].contentHash, messageWithCloudKey.contentHash,
+    'server canonicalization must recompute the immutable message content hash');
+  const canonicalDuplicate = await service.submitBatch(grantA, {
+    batchId: 'batch_message_memory_cloud_key_duplicate', changes: [
+      { ...messageWithCloudKey, changeId: 'change_message_memory_cloud_key_duplicate' },
+    ],
+  });
+  assert.equal(canonicalDuplicate.conflictCount, 0);
+  assert.equal(canonicalDuplicate.acceptedChanges.length, 0);
+  assert.equal(Number((await pool.query(`SELECT COUNT(*) count FROM cloud_messages_v6
+    WHERE user_id='user_a' AND id='message_memory_cloud_key'`)).rows[0].count), 1);
+  const missingMemory = await service.submitBatch(grantA, {
+    batchId: 'batch_message_memory_missing', changes: [{
+      changeId: 'change_message_memory_missing', entityType: 'message', entityId: 'message_memory_missing',
+      operation: 'upsert', baseRevision: 0, occurredAt: new Date().toISOString(), payload: {
+        id: 'message_memory_missing', conversationId: 'agent_primary', agentInstanceId: 'instance_cloud',
+        memoryId: 'memdoc_unresolved_local', contextSpaceId: memoryContext,
+        role: 'user', content: 'must remain a preserved conflict', createdAt: new Date().toISOString(),
+      },
+    }],
+  });
+  assert.equal(missingMemory.conflictCount, 1);
+  assert.equal(missingMemory.conflicts[0].kind, 'message_memory_dependency_missing');
+  assert.equal(Number((await pool.query(`SELECT COUNT(*) count FROM cloud_messages_v6
+    WHERE user_id='user_a' AND id='message_memory_missing'`)).rows[0].count), 0);
+  const inferredMemory = await service.submitBatch(grantA, {
+    batchId: 'batch_message_memory_inferred', changes: [{
+      changeId: 'change_message_memory_inferred', entityType: 'message', entityId: 'message_memory_inferred',
+      operation: 'upsert', baseRevision: 0, occurredAt: new Date().toISOString(), payload: {
+        id: 'message_memory_inferred', conversationId: 'agent_primary', agentInstanceId: 'instance_cloud',
+        contextSpaceId: memoryContext, role: 'assistant', content: 'Memory inferred from exact context',
+        createdAt: new Date().toISOString(),
+      },
+    }],
+  });
+  assert.equal(inferredMemory.conflictCount, 0);
+  assert.equal(inferredMemory.acceptedChanges[0].payload.memoryId, 'memory_cloud');
+
   const grantB = { userId: 'user_b', deviceId: 'device_b', scopes: ['sync:*'] };
   assert.equal((await service.changes(grantB, { cursor: '', limit: 100 })).changes.length, 0);
   await assert.rejects(service.submitBatch(grantA, { ...v5Batch({ batchId: 'spoof', deviceId: 'device_b' }),
@@ -306,3 +389,8 @@ function v5Batch({ batchId, deviceId, instanceId = 'instance_cloud', documentId 
 }
 
 function apiError(code, message, status) { const error = new Error(message); error.code = code; error.status = status; return error; }
+
+async function pgMemMigration(relativeUrl) {
+  const sql = await fs.readFile(new URL(relativeUrl, import.meta.url), 'utf8');
+  return sql.split(/--\s*requires-real-postgres-tail:[^\r\n]*/i, 1)[0];
+}

@@ -7,7 +7,6 @@ import { test } from 'node:test';
 
 import { newDb } from 'pg-mem';
 
-import { migrate } from '../src/db.mjs';
 import { createTaskKeyRecoveryService } from '../src/modules/sync/taskKeyRecovery.mjs';
 import {
   LocalTaskMemoryKeyring,
@@ -22,13 +21,15 @@ test('Sync V6 rewraps a cloud task DEK only to an approved device and the device
   const pool = new adapter.Pool();
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'janus-key-recovery-'));
   t.after(async () => { await pool.end(); await fs.rm(root, { recursive: true, force: true }); });
-  await migrate(pool);
-  await pool.query("INSERT INTO users(id,email,display_name,username,password_hash) VALUES('user_a','user_a@example.test','User A','user_a','test-hash')");
+  await pool.query('CREATE TABLE users(id text PRIMARY KEY)');
+  for (const file of ['008_evolution_authority.sql', '013_multi_memory_task_security.sql', '015_task_memory_encryption.sql', '017_cloud_sync_v6.sql']) {
+    await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  await pool.query("INSERT INTO users(id) VALUES('user_a')");
   await pool.query("INSERT INTO cloud_agent_families_v3(id,department_id,name,role,payload_json) VALUES('family','general','Family','agent','{}'::jsonb)");
   await pool.query("INSERT INTO cloud_agent_versions_v3(id,agent_family_id,payload_json) VALUES('base','family','{}'::jsonb)");
-  await pool.query(`INSERT INTO cloud_user_agent_instances_v3(
-    user_id,id,agent_family_id,base_agent_version_id,status,sync_enabled,personal_evolution_consent,cluster_contribution_consent
-  ) VALUES('user_a','instance','family','base','active',true,true,true)`);
+  await pool.query(`INSERT INTO cloud_user_agent_instances_v3(user_id,id,agent_family_id,base_agent_version_id,status,sync_enabled)
+    VALUES('user_a','instance','family','base','active',true)`);
   await pool.query(`INSERT INTO cloud_memory_documents_v3(user_id,id,user_agent_instance_id,scope,slot_no,task_run_id,sync_enabled,payload_json)
     VALUES('user_a','task_memory','instance','task',0,'task_1',true,'{}'::jsonb)`);
 

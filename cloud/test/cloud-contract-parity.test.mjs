@@ -15,18 +15,18 @@ import {
 import { EVIDENCE_REJECTION_KINDS } from '../../src/shared/evolution/contracts.js';
 
 test('PostgreSQL and embedded SQLite expose the same logical multi-Memory contract', async () => {
-  const postgres = await fs.readFile(new URL('../database/baseline-sync8.sql', import.meta.url), 'utf8');
-  const evidenceContract = postgres;
-  const evidenceUsageEvents = postgres;
-  const evidenceSourceAuthority = postgres;
-  const evidenceCollectionLedger = postgres;
-  const leadershipContract = postgres;
-  const clusterAlignment = postgres;
-  const performanceV2 = postgres;
-  const realCanary = postgres;
-  const defaultCanary = postgres;
-  const stage123 = postgres;
-  const chatContextState = postgres;
+  const postgres = await fs.readFile(new URL('../migrations/021_context_space_memory_contract.sql', import.meta.url), 'utf8');
+  const evidenceContract = await fs.readFile(new URL('../migrations/022_evidence_contract.sql', import.meta.url), 'utf8');
+  const evidenceUsageEvents = await fs.readFile(new URL('../migrations/028_evidence_usage_events.sql', import.meta.url), 'utf8');
+  const evidenceSourceAuthority = await fs.readFile(new URL('../migrations/030_evidence_source_authority.sql', import.meta.url), 'utf8');
+  const evidenceCollectionLedger = await fs.readFile(new URL('../migrations/032_evidence_collection_ledger.sql', import.meta.url), 'utf8');
+  const leadershipContract = await fs.readFile(new URL('../migrations/033_agent_leadership_levels.sql', import.meta.url), 'utf8');
+  const clusterAlignment = await fs.readFile(new URL('../migrations/037_cluster_contract_alignment.sql', import.meta.url), 'utf8');
+  const performanceV2 = await fs.readFile(new URL('../migrations/038_cluster_feedback_performance_v2.sql', import.meta.url), 'utf8');
+  const realCanary = await fs.readFile(new URL('../migrations/039_real_market_canary.sql', import.meta.url), 'utf8');
+  const defaultCanary = await fs.readFile(new URL('../migrations/051_default_market_canary_enrollment.sql', import.meta.url), 'utf8');
+  const stage123 = await fs.readFile(new URL('../migrations/040_stage123_authority_closure.sql', import.meta.url), 'utf8');
+  const chatContextState = await fs.readFile(new URL('../migrations/043_chat_context_state.sql', import.meta.url), 'utf8');
   for (const source of [postgres, CLOUD_SCHEMA]) {
     assert.match(source, /cloud_agent_context_spaces/);
     assert.match(source, /cloud_memory_sync_mappings/);
@@ -49,12 +49,11 @@ test('PostgreSQL and embedded SQLite expose the same logical multi-Memory contra
     assert.match(source, /provider_compaction_detected/);
   }
   assert.match(postgres, /idx_cloud_memory_documents_slot_identity_v3/);
-  assert.match(postgres, /INSERT INTO public\.account_workspaces\(id,workspace_kind,name,status\)[\s\S]*?'workspace_personal'/,
-    'the consolidated PostgreSQL baseline must preserve the personal Workspace seed required by the new-user trigger');
-  assert.doesNotMatch(postgres, /cloud_agent_context_spaces_legacy_v20/);
-  assert.doesNotMatch(postgres, /cloud_memory_sync_mappings_legacy_v20/);
+  assert.match(postgres, /cloud_agent_context_spaces_legacy_v20 c[\s\S]*c\.memory_document_id=cloud_memory_documents_v3\.id/);
+  assert.match(postgres, /FROM cloud_memory_sync_mappings_legacy_v20 l/);
+  assert.doesNotMatch(postgres, /c\.memory_cloud_key/);
   assert.match(CLOUD_SCHEMA, /UNIQUE\(user_id,user_agent_instance_id,scope,slot_no,task_run_id,project_id,relationship_id\)/);
-  assert.equal(/private_key/.test(postgres.match(/CREATE TABLE public\.cloud_memory_sync_mappings[\s\S]*?\);/)?.[0] || ''), false);
+  assert.equal(/private_key/.test(postgres.match(/CREATE TABLE cloud_memory_sync_mappings[\s\S]*?\);/)?.[0] || ''), false);
   assert.equal(/private_key/.test(CLOUD_SCHEMA.match(/CREATE TABLE IF NOT EXISTS cloud_memory_sync_mappings[\s\S]*?\);/)?.[0] || ''), false);
   for (const value of EVIDENCE_REJECTION_KINDS) {
     assert.ok(evidenceContract.includes(`'${value}'`), `${value} is absent from the PostgreSQL evidence contract`);

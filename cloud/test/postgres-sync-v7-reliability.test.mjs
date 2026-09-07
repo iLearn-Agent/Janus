@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import { test } from 'node:test';
 
 import { newDb } from 'pg-mem';
 
-import { migrate } from '../src/db.mjs';
 import { createFileObjectService } from '../src/modules/sync/fileObjects.mjs';
 import { createMemoryObjectStore } from '../src/modules/sync/objectStore.mjs';
 import { createSyncV6Service } from '../src/modules/sync/syncV6.mjs';
@@ -96,12 +96,12 @@ async function createReliabilityDatabase(t) {
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
-  await migrate(pool);
-  await pool.query(`INSERT INTO account_workspaces(id,workspace_kind,name,status)
-    VALUES('workspace_personal','personal','Personal','active')`);
-  await pool.query(`INSERT INTO users(id,email,display_name,username,password_hash) VALUES
-    ('user_a','user_a@example.test','User A','user_a','test-hash'),
-    ('user_b','user_b@example.test','User B','user_b','test-hash')`);
+  await pool.query('CREATE TABLE users(id text PRIMARY KEY)');
+  for (const file of ['008_evolution_authority.sql', '010_cluster_market_evolution.sql', '013_multi_memory_task_security.sql', '017_cloud_sync_v6.sql',
+    '020_primary_context_memory.sql', '026_sync_v7_reliability.sql']) {
+    await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  await pool.query("INSERT INTO users(id) VALUES('user_a'),('user_b')");
   return { pool };
 }
 

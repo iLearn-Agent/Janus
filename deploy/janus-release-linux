@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_REPO="${JANUS_APP_REPO:-/path/to/Janus}"
+CLOUD_HOME="${JANUS_CLOUD_HOME:-/path/to/janus-cloud}"
+BUILD_ROOT_OVERRIDE="${JANUS_LINUX_RELEASE_BUILD_ROOT:-}"
+BUILD_ONLY=0
+ALLOW_DIRTY=0
+SKIP_INSTALL=0
+SKIP_CHECK=0
+TEST_RELEASE=0
+REQUESTED_VERSION=""
+
+usage() {
+  cat <<'EOF'
+Usage: npm run release:linux -- [options]
+
+Options:
+  --build-only    Build and sign Linux artifacts without publishing them.
+  --test          Build and publish the isolated Janus Test application.
+  --version VER   Override the package version for this release.
+  --allow-dirty   Allow building from an uncommitted working tree.
+  --skip-install  Skip npm ci when dependencies are already current.
+  --skip-check    Skip npm run check (not recommended).
+  -h, --help      Show this help.
+
+The release version defaults to package.json. AppImage is the only Linux
+desktop release and auto-update artifact.
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    --build-only) BUILD_ONLY=1 ;;
+    --test) TEST_RELEASE=1 ;;
+    --version)
+      [[ $# -ge 2 ]] || { echo "--version requires a value" >&2; exit 2; }
+      REQUESTED_VERSION="$2"
+      shift
+      ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
+    --skip-install) SKIP_INSTALL=1 ;;
+    --skip-check) SKIP_CHECK=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if (( TEST_RELEASE )); then
+  RELEASES_DIR="test_releases"
+  BUILDER_CONFIG="deploy/electron-builder.linux.test.cjs"
+else
+  RELEASES_DIR="releases"
+  BUILDER_CONFIG="deploy/electron-builder.linux.cjs"
+fi
+BUILD_ROOT="${BUILD_ROOT_OVERRIDE:-$CLOUD_HOME/$RELEASES_DIR/.build/linux}"
+
+for command in node npm git flock; do
+  command -v "$command" >/dev/null || { echo "Required command not found: $command" >&2; exit 3; }
+done
+
+cd "$APP_REPO"
+if (( ! ALLOW_DIRTY )) && [[ -n "$(git status --porcelain)" ]]; then
+  echo "Working tree is not clean. Commit the release source or pass --allow-dirty." >&2
+  exit 4
+fi
+if (( TEST_RELEASE && ! ALLOW_DIRTY )) && [[ -n "$(git status --porcelain)" ]]; then
+  echo "Test releases cannot be built from a dirty working tree. Commit every source change first." >&2
+  exit 4
+fi
+
+VERSION="${REQUESTED_VERSION:-$(node -p "require('./package.json').version")}"
+export JANUS_SOURCE_COMMIT="${JANUS_SOURCE_COMMIT:-$(git rev-parse HEAD)}"
+export JANUS_SOURCE_TREE="${JANUS_SOURCE_TREE:-$(git rev-parse HEAD^{tree})}"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid release version: $VERSION" >&2
+  exit 5
+fi
+
+TARGET_DIR="$CLOUD_HOME/$RELEASES_DIR/linux/$VERSION"
+if (( ! BUILD_ONLY )) && [[ -d "$TARGET_DIR" ]] && [[ -n "$(find "$TARGET_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "Linux release $VERSION already exists and is immutable. Bump package.json before publishing." >&2
+  exit 6
+fi
+
+SIGNING_KEY="${JANUS_RELEASE_SIGNING_PRIVATE_KEY:-$CLOUD_HOME/release-signing-private.pem}"
+if [[ ! -f "$SIGNING_KEY" ]]; then
+  echo "Desktop update signing key not found: $SIGNING_KEY" >&2
+  exit 7
+fi
+
+mkdir -p "$BUILD_ROOT" "$CLOUD_HOME/incoming"
+exec 9>"$CLOUD_HOME/.linux-release.lock"
+flock -n 9 || { echo "Another Linux release is already running." >&2; exit 8; }
+
+BUILD_DIR="$BUILD_ROOT/${VERSION}-$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$BUILD_DIR"
+DEFAULTS_FILE="$APP_REPO/assets/cloud-sync-defaults.json"
+DEFAULTS_BACKUP=""
+cleanup() {
+  if [[ -n "$DEFAULTS_BACKUP" && -f "$DEFAULTS_BACKUP" ]]; then
+    cp -p "$DEFAULTS_BACKUP" "$DEFAULTS_FILE"
+    rm -f "$DEFAULTS_BACKUP"
+  else
+    rm -f "$DEFAULTS_FILE"
+  fi
+}
+trap cleanup EXIT
+
+if [[ -f "$DEFAULTS_FILE" ]]; then
+  DEFAULTS_BACKUP="$(mktemp /tmp/janus-cloud-sync-defaults.XXXXXX)"
+  cp -p "$DEFAULTS_FILE" "$DEFAULTS_BACKUP"
+  chmod 600 "$DEFAULTS_BACKUP"
+fi
+
+if [[ -f "$CLOUD_HOME/.env" ]]; then
+  set -a
+  source "$CLOUD_HOME/.env"
+  set +a
+fi
+RELEASE_DISTRIBUTION_MODE="${JANUS_RELEASE_DISTRIBUTION_MODE:-internal-embedded}"
+case "$RELEASE_DISTRIBUTION_MODE" in
+  open-source)
+    export JANUS_DISTRIBUTION_MODE=open-source
+    unset JANUS_TRIAL_CODEX_KEY JANUS_TRIAL_CODEX_KEY_FILE JANUS_TRIAL_CODEX_BASE_URL JANUS_TRIAL_PROVIDER_REQUIRED JANUS_ALLOW_OFFICIAL_PROVIDER_EMBED
+    ;;
+  internal-embedded)
+    export JANUS_DISTRIBUTION_MODE=internal-embedded
+    export JANUS_TRIAL_PROVIDER_REQUIRED=1
+    ;;
+  *)
+    echo "JANUS_RELEASE_DISTRIBUTION_MODE must be open-source or internal-embedded." >&2
+    exit 8
+    ;;
+esac
+export JANUS_SOURCE_COMMIT="$(git rev-parse HEAD)"
+export JANUS_SOURCE_TREE="$(git rev-parse HEAD^{tree})"
+
+echo "Building Janus Linux x64 $VERSION into $BUILD_DIR"
+EXPECTED_CODEX_VERSION="$(node -p "require('./package.json').dependencies['@openai/codex']")"
+INSTALLED_CODEX_VERSION="$(node -p "try { require('@openai/codex/package.json').version } catch { '' }" 2>/dev/null || true)"
+if (( ! SKIP_INSTALL )) || [[ "$INSTALLED_CODEX_VERSION" != "$EXPECTED_CODEX_VERSION" ]]; then
+  npm ci --include=dev --no-audit --no-fund
+fi
+if (( ! SKIP_CHECK )); then npm run check; fi
+
+if (( TEST_RELEASE )); then
+  PACKAGED_CLOUD_URL="${JANUS_TEST_PACKAGED_CLOUD_URL:-}"
+else
+  PACKAGED_CLOUD_URL="${JANUS_PACKAGED_CLOUD_URL:-${JANUS_PUBLIC_BASE_URL:-http://your-janus.example}}"
+fi
+if [[ -n "$PACKAGED_CLOUD_URL" ]]; then
+  JANUS_PACKAGED_CLOUD_URL="$PACKAGED_CLOUD_URL" \
+    node scripts/write_cloud_sync_defaults.mjs
+else
+  echo "No $RELEASES_DIR cloud URL is configured; building without packaged cloud defaults."
+fi
+
+ELECTRON_DIST_ARGS=()
+if [[ -n "${JANUS_ELECTRON_DIST:-}" ]]; then
+  ELECTRON_DIST_ARGS+=("--config.electronDist=$(realpath "$JANUS_ELECTRON_DIST")")
+fi
+
+npx electron-builder --linux AppImage --x64 --publish never \
+  --config "$BUILDER_CONFIG" \
+  --config.extraMetadata.version="$VERSION" \
+  --config.directories.output="$BUILD_DIR" \
+  "${ELECTRON_DIST_ARGS[@]}"
+
+shopt -s nullglob
+appimages=("$BUILD_DIR"/*.AppImage)
+if (( ${#appimages[@]} != 1 )); then
+  echo "Expected one AppImage, found ${#appimages[@]}." >&2
+  exit 9
+fi
+test -f "$BUILD_DIR/latest-linux.yml"
+node scripts/verify_packaged_app.mjs \
+  --app-dir "$BUILD_DIR/linux-unpacked" \
+  --expected-channel "$([[ $TEST_RELEASE -eq 1 ]] && echo test || echo stable)" \
+  --expected-version "$VERSION" \
+  --expected-source-commit "$JANUS_SOURCE_COMMIT"
+test -f "$BUILD_DIR/linux-unpacked/resources/app.asar.unpacked/assets/auth-defaults.json"
+test -f "$BUILD_DIR/linux-unpacked/resources/trial-provider/provider.enc"
+CODEX_BIN="$(find "$BUILD_DIR/linux-unpacked/resources/app.asar.unpacked/node_modules/@openai" -path '*/vendor/*/bin/codex' -type f -print -quit)"
+if [[ -z "$CODEX_BIN" ]]; then
+  echo "Bundled Codex CLI was not found in the Linux application package." >&2
+  exit 10
+fi
+"$CODEX_BIN" --version
+
+node scripts/sign_desktop_update.mjs \
+  --platform linux \
+  --dist "$BUILD_DIR" \
+  --private-key "$SIGNING_KEY"
+
+ASAR_FILE="$BUILD_DIR/linux-unpacked/resources/app.asar"
+if [[ -f "$ASAR_FILE" ]]; then
+  if node node_modules/@electron/asar/bin/asar.js list "$ASAR_FILE" | grep -E '(^|/)(auth\.json|\.env)$' >/dev/null; then
+    echo "Refusing to publish: a model credential file was found in app.asar." >&2
+    exit 11
+  fi
+fi
+
+if (( BUILD_ONLY )); then
+  echo "Linux build completed without publishing."
+  echo "AppImage: ${appimages[0]}"
+  echo "Feed:     $BUILD_DIR/latest-linux.yml"
+  exit 0
+fi
+
+INCOMING_DIR="$CLOUD_HOME/incoming/linux-$RELEASES_DIR-${VERSION}-$$"
+mkdir -p "$INCOMING_DIR"
+cp "${appimages[0]}" "$BUILD_DIR/latest-linux.yml" "$INCOMING_DIR/"
+blockmap="${appimages[0]}.blockmap"
+if [[ -f "$blockmap" ]]; then cp "$blockmap" "$INCOMING_DIR/"; fi
+
+JANUS_CLOUD_HOME="$CLOUD_HOME" \
+JANUS_RELEASE_SIGNING_PUBLIC_KEY="${JANUS_RELEASE_SIGNING_PUBLIC_KEY:-$APP_REPO/assets/release-signing-public.pem}" \
+  node scripts/register_linux_release.mjs --version "$VERSION" --incoming "$INCOMING_DIR" --releases-dir "$RELEASES_DIR"
+
+rm -rf -- "$BUILD_DIR"
+echo "Published Janus Linux $VERSION to $RELEASES_DIR."
+if (( TEST_RELEASE )); then
+  echo "Feed: http://your-janus.example/janus/test_releases/linux/latest-linux.yml"
+else
+  echo "Feed: ${JANUS_UPDATE_URL:-http://your-janus.example/janus/releases}/linux/latest-linux.yml"
+fi

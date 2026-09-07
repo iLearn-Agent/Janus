@@ -23,6 +23,8 @@ test('production Sync V6 HTTP routes automatically authorize two authenticated d
   const memory = newDb({ autoCreateForeignKeyIndices: true, noAstCoverageCheck: true });
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
+  await pool.query('CREATE TABLE schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+  await pool.query("INSERT INTO schema_migrations(filename) VALUES('024_cluster_cohort_ledger_contract.sql')");
   await migrate(pool);
   const jwtSecret = 'sync-v6-http-test-secret-with-at-least-32-chars';
   const config = { jwtSecret, accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, emailCodeTtlMinutes: 10, emailCodeSecret: jwtSecret,
@@ -34,8 +36,6 @@ test('production Sync V6 HTTP routes automatically authorize two authenticated d
   });
   t.after(async () => { await new Promise((resolve) => server.close(resolve)); await pool.end(); });
   const base = `http://127.0.0.1:${server.address().port}`;
-  await pool.query(`INSERT INTO account_workspaces(id,workspace_kind,name,status)
-    VALUES('workspace_personal','personal','Personal','active')`);
   for (const userId of ['user_a', 'user_b']) {
     await pool.query(`INSERT INTO users(id,email,display_name,username,password_hash,email_verified)
       VALUES($1,$2,$3,$4,'hash',true)`, [userId, `${userId}@example.test`, userId, userId]);
@@ -288,9 +288,8 @@ test('production Sync V6 HTTP routes automatically authorize two authenticated d
 
   const authoritativeMemory = 'PostgreSQL authoritative Memory.';
   await pool.query(`INSERT INTO cloud_memory_documents_v3
-    (user_id,id,user_agent_instance_id,current_version_id,sync_enabled,allow_personal_evolution,allow_cluster_evolution,
-     scope,slot_no,task_run_id,payload_json)
-    VALUES('user_a','pg_memory',$1,'pg_memory_v1',true,true,true,'task',0,'pg_memory_task','{}'::jsonb)`, [evidenceInstanceId]);
+    (user_id,id,user_agent_instance_id,current_version_id,sync_enabled,allow_personal_evolution,payload_json)
+    VALUES('user_a','pg_memory',$1,'pg_memory_v1',true,true,'{}'::jsonb)`, [evidenceInstanceId]);
   await pool.query(`INSERT INTO cloud_memory_document_versions_v3
     (user_id,id,memory_document_id,content_hash,payload_json)
     VALUES('user_a','pg_memory_v1','pg_memory',$1,'{}'::jsonb)`, [crypto.createHash('sha256').update(authoritativeMemory).digest('hex')]);

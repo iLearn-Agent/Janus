@@ -16,7 +16,7 @@ import {
 } from '../../src/shared/evolution/leadership.js';
 
 test('PostgreSQL and embedded SQLite expose the Leadership v1 contract', async () => {
-  const postgres = await fs.readFile(new URL('../database/baseline-sync8.sql', import.meta.url), 'utf8');
+  const postgres = await fs.readFile(new URL('../migrations/033_agent_leadership_levels.sql', import.meta.url), 'utf8');
   for (const source of [postgres, CLOUD_SCHEMA]) {
     for (const table of ['cloud_agent_leadership_events', 'cloud_agent_leadership_evaluations', 'cloud_agent_leadership_levels',
       'cloud_agent_leadership_history', 'cloud_leadership_promotion_actions', 'cloud_leadership_appeals']) assert.ok(source.includes(table), `${table} is missing`);

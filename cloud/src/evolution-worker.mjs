@@ -4,7 +4,7 @@ import { createPostgresEvolutionWorker, createPostgresLeadershipAuthority, creat
 import { logDeprecatedEvolutionEnvironment } from '../../src/shared/evolution/index.js';
 
 logDeprecatedEvolutionEnvironment({ processName: 'janus-evolution-worker' });
-const config = readConfig(process.env, { requireJwt: false });
+const config = readConfig();
 const pool = createPgPool(config.evolutionWorkerDatabaseUrl);
 if (config.production) {
   await assertDatabaseRole(pool,'janus_evolution_worker');

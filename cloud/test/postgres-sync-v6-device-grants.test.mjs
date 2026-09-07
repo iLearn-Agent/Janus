@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import { test } from 'node:test';
 
 import { newDb } from 'pg-mem';
 
-import { migrate } from '../src/db.mjs';
 import { createDeviceGrantService, routeWithDeviceGrant } from '../src/modules/sync/deviceGrants.mjs';
 import { deviceGrantProofMessage, rsaPublicKeyFingerprint } from '../../src/shared/taskMemoryCrypto.js';
 
@@ -13,8 +13,11 @@ test('Sync V6 Device Grants support strict cross-device approval and enforce rev
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
-  await migrate(pool);
-  await insertUsers(pool, ['user_a', 'user_b']);
+  await pool.query('CREATE TABLE users(id text PRIMARY KEY)');
+  for (const file of ['008_evolution_authority.sql', '013_multi_memory_task_security.sql', '015_task_memory_encryption.sql', '017_cloud_sync_v6.sql']) {
+    await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  await pool.query("INSERT INTO users(id) VALUES('user_a'),('user_b')");
 
   const service = createDeviceGrantService({ pool, apiError, approvalMode: 'cross_device' });
   const firstKey = deviceIdentity();
@@ -63,8 +66,11 @@ test('authenticated device registration automatically authorizes new, replacemen
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
-  await migrate(pool);
-  await insertUsers(pool, ['user_login']);
+  await pool.query('CREATE TABLE users(id text PRIMARY KEY)');
+  for (const file of ['008_evolution_authority.sql', '013_multi_memory_task_security.sql', '015_task_memory_encryption.sql', '017_cloud_sync_v6.sql']) {
+    await pool.query(await fs.readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
+  await pool.query("INSERT INTO users(id) VALUES('user_login')");
 
   const service = createDeviceGrantService({ pool, apiError });
   const firstKey = deviceIdentity();
@@ -117,9 +123,4 @@ function authorize(pool, token, scope) {
     const middleware = routeWithDeviceGrant(pool, apiError, scope, async (authorizedRequest) => resolve(authorizedRequest.deviceGrant));
     middleware(req, {}, reject);
   });
-}
-
-async function insertUsers(pool, ids) {
-  for (const id of ids) await pool.query(`INSERT INTO users(id,email,display_name,username,password_hash)
-    VALUES($1,$2,$3,$1,'test-hash')`, [id, `${id}@example.test`, id]);
 }

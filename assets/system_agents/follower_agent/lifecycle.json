@@ -1,0 +1,18 @@
+{
+  "status": "active",
+  "routing_state": "disabled",
+  "role": "system_service",
+  "rank": "system",
+  "enabled": true,
+  "permissions": {
+    "automaticRouting": false,
+    "canWriteLongTermMemory": false,
+    "canSelfEvolve": false,
+    "canLeadTask": false,
+    "canReviewEvolution": false,
+    "canManageRoster": false,
+    "canChangeOrganization": false,
+    "memoryWritePolicy": "disabled",
+    "routingPriority": 0
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "janus",
-  "version": "1.0.0",
+  "version": "1.1.58",
   "description": "Cross-platform local-first Janus desktop software with Codex-backed agents and governed self-evolution.",
   "homepage": "https://janus.local",
   "desktopName": "Janus",
@@ -22,6 +22,9 @@
     "test:all": "node scripts/test_runner.mjs --suite all",
     "test:diagnostic": "node scripts/test_runner.mjs",
     "test:logging": "node scripts/application_logging_smoke.mjs",
+    "test:voice-call": "node scripts/voice_call_contract_smoke.mjs",
+    "test:multi-party-call": "node scripts/multi_party_call_contract_smoke.mjs",
+    "test:mobile-gateway": "node scripts/mobile_gateway_smoke.mjs",
     "ubuddy:keepalive": "node scripts/ubuddy_keepalive.mjs",
     "ubuddy:keepalive:5m": "node scripts/ubuddy_keepalive.mjs --interval-seconds 300",
     "test:rerun-failed": "node scripts/test_runner.mjs --rerun-failed latest",
@@ -49,16 +52,17 @@
     "cloud:start": "node cloud/src/index.mjs",
     "cloud:evolution-worker": "node cloud/src/evolution-worker.mjs",
     "cloud:migrate": "node cloud/scripts/migrate.mjs",
-    "cloud:verify-baseline": "node cloud/scripts/verify-baseline.mjs",
-    "cloud:mark-baseline-equivalent": "node cloud/scripts/mark-baseline-equivalent.mjs",
     "cloud:import-legacy": "node cloud/scripts/import-legacy-sqlite.mjs",
+    "cloud:preflight-production": "node scripts/cloud_production_preflight.mjs",
+    "cloud:configure-production": "node cloud/scripts/configure-production-env.mjs",
+    "cloud:provision-production": "node cloud/scripts/provision-production-db.mjs",
     "cloud:rehearse-sync-v6": "node scripts/cloud_sync_v6_postgres_rehearsal.mjs",
     "cloud:rehearse-s3-v6": "node scripts/cloud_sync_v6_s3_rehearsal.mjs",
     "cloud:seed": "node cloud/scripts/seed.mjs",
     "cloud:test": "node --test cloud/test/auth-friends.test.mjs",
     "cloud:test:employees": "node --test cloud/test/cloud-contract-parity.test.mjs cloud/test/desktop-employee-immediate-sync.test.mjs cloud/test/desktop-sync-v6.test.mjs cloud/test/postgres-employee-authority.test.mjs cloud/test/postgres-sync-v6-changes.test.mjs cloud/test/postgres-sync-v6-http.test.mjs cloud/test/sqlite-employee-authority.test.mjs",
     "cloud:test:leadership": "node --test cloud/test/leadership-levels.test.mjs cloud/test/sqlite-cloud-contract.test.mjs cloud/test/sqlite-work-memory.test.mjs",
-    "cloud:test:evolution": "node --test cloud/test/evolution-contracts.test.mjs cloud/test/evolution-worker-security.test.mjs cloud/test/market-support-privacy.test.mjs cloud/test/postgres-stage8.test.mjs cloud/test/sqlite-evolution-authority.test.mjs cloud/test/stage8-evolution.test.mjs",
+    "cloud:test:evolution": "node --test cloud/test/evolution-contracts.test.mjs cloud/test/evolution-worker-security.test.mjs cloud/test/market-support-privacy.test.mjs cloud/test/postgres-evolution-migration.test.mjs cloud/test/postgres-stage8.test.mjs cloud/test/sqlite-evolution-authority.test.mjs cloud/test/stage8-evolution.test.mjs",
     "cloud:gate:evolution-stage2-4": "npm run cloud:test:evolution && node scripts/evolution_evidence_outbox_smoke.mjs && node scripts/evolution_worker_security_postgres_rehearsal.mjs",
     "cloud:rehearse-employees": "node scripts/cloud_employee_postgres_rehearsal.mjs",
     "cloud:rehearse-cluster": "node scripts/cluster_evolution_postgres_rehearsal.mjs",
@@ -68,13 +72,15 @@
     "smoke:network-layout": "node scripts/network_panel_layout_smoke.mjs",
     "cloud:init": "node scripts/cloud.mjs init",
     "cloud:serve": "node scripts/cloud.mjs serve",
+    "cloud:promote-stable": "node scripts/cloud.mjs promote-stable",
+    "cloud:upload-artifact": "node scripts/cloud.mjs upload-artifact",
     "server:evolve": "node scripts/server_evolve.mjs",
     "server:evolve:dry-run": "node scripts/server_evolve.mjs --dry-run",
+    "server:publish-agents": "node scripts/publish_agent_bundle.mjs",
     "generate:icons": "node scripts/generate_icons.mjs",
     "prepare:trial-provider": "node scripts/prepare_trial_provider_bundle.mjs",
     "test:trial-provider": "node scripts/trial_provider_bundle_smoke.mjs",
-    "build:community": "node scripts/run_open_source_build.mjs --",
-    "build:open-source": "npm run build:community --",
+    "build:open-source": "node scripts/run_open_source_build.mjs --",
     "sync:codex-cli": "node scripts/sync_codex_cli.mjs --sync",
     "check:codex-cli": "node scripts/sync_codex_cli.mjs --check",
     "pack:linux": "electron-builder --dir --linux --x64 --config deploy/electron-builder.linux.cjs",
@@ -89,19 +95,17 @@
     "dist:mac:test": "electron-builder --mac --config deploy/electron-builder.macos.test.cjs",
     "dist:win": "electron-builder --win --config deploy/electron-builder.windows.cjs",
     "dist:win:test": "node scripts/build_windows_test.mjs",
-    "verify:win:test": "node scripts/verify_packaged_app.mjs --app-dir test-artifacts/windows/win-unpacked --expected-channel test",
+    "verify:win:test": "node scripts/verify_packaged_app.mjs --app-dir test-artifacts/windows/win-unpacked --expected-channel test --expected-cloud-url http://your-janus.example",
     "verify:win:signature": "node scripts/verify_windows_authenticode.mjs",
     "test:win:signature-gate": "node scripts/windows_authenticode_gate_smoke.mjs",
     "sign:desktop-update": "node scripts/sign_desktop_update.mjs",
-    "config:check:compose": "node deploy/scripts/check-config.mjs compose",
-    "config:check:desktop": "node deploy/scripts/check-config.mjs desktop",
-    "config:check:api": "node deploy/scripts/check-config.mjs api",
-    "config:check:worker": "node deploy/scripts/check-config.mjs worker",
-    "config:check:migrator": "node deploy/scripts/check-config.mjs migrator",
-    "config:check:storage": "node deploy/scripts/check-config.mjs storage",
-    "config:check:release": "node deploy/scripts/check-config.mjs release",
-    "deploy:preflight": "node deploy/scripts/preflight.mjs",
-    "security:scan:tree": "node deploy/scripts/scan-public-tree.mjs"
+    "publish:release": "bash deploy/janus-release-desktop",
+    "release:desktop": "bash deploy/janus-release-desktop",
+    "release:test": "bash deploy/janus-release-desktop --test",
+    "release:linux": "bash deploy/janus-release-linux",
+    "release:linux:build": "bash deploy/janus-release-linux --build-only",
+    "release:linux:test": "bash deploy/janus-release-linux --test",
+    "release:linux:test:build": "bash deploy/janus-release-linux --test --build-only"
   },
   "keywords": [
     "janus",
@@ -131,13 +135,19 @@
       "!**/*.orig",
       "package.json"
     ],
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://your-janus.example/janus/releases"
+      }
+    ],
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Development",
       "maintainer": "Janus Team <dev@janus.local>",
-      "icon": "assets/icons/icon.png",
+      "icon": "assets/icons",
       "syncDesktopName": true
     },
     "mac": {
@@ -156,9 +166,13 @@
     }
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.73.0",
     "@openai/codex": "0.145.0",
+    "docx": "^9.7.1",
     "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
+    "katex": "^0.16.22",
     "nodemailer": "^9.0.3",
     "pg": "^8.22.0"
   },

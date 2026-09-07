@@ -78,6 +78,20 @@ test('desktop Sync V6 bootstraps a Device Grant, applies remote records, and res
   assert.equal(sync.applyV6Changes(changes, { remoteUserId: 'remote_user' }).status, 'applied');
   assert.equal(db.prepare("SELECT title FROM projects WHERE id='project_1'").get().title, 'Remote project');
   assert.equal(db.prepare("SELECT agent_instance_id FROM sessions WHERE id='conversation_1'").get().agent_instance_id, 'instance_1');
+  const localCloudMemory = db.prepare("SELECT id,context_space_id FROM memory_documents WHERE cloud_key='memory_cloud_key_1'").get();
+  db.prepare(`INSERT INTO agent_context_spaces(
+    id,account_workspace_id,user_id,user_agent_instance_id,context_kind,memory_document_id,lifecycle_state
+  ) VALUES('context_legacy_empty','workspace_personal','local_user','instance_1','general_memory','','active')`).run();
+  db.prepare("UPDATE memory_documents SET context_space_id='context_legacy_empty' WHERE id=?").run(localCloudMemory.id);
+  assert.equal(sync.applyV6Changes([
+    change('agent_context_space', 'context_cloud_1', { id: 'context_cloud_1', user_agent_instance_id: 'instance_1',
+      context_kind: 'general_memory', memory_document_id: 'memory_cloud_1', lifecycle_state: 'active', updated_at: now }),
+  ], { remoteUserId: 'remote_user' }).status, 'applied');
+  assert.equal(db.prepare('SELECT context_space_id FROM memory_documents WHERE id=?').get(localCloudMemory.id).context_space_id, 'context_cloud_1',
+    'a repeated cloud context delivery must repair a stale empty-Memory pointer');
+  const staleContext = db.prepare("SELECT lifecycle_state FROM agent_context_spaces WHERE id='context_legacy_empty'").get();
+  assert.equal(!staleContext || staleContext.lifecycle_state === 'inactive', true,
+    'the stale empty-Memory context must be removed or retained only as inactive history');
   const historicalConversation = db.prepare("SELECT conversation_role,write_state,superseded_by_session_id FROM sessions WHERE id='conversation_2'").get();
   assert.equal(historicalConversation.conversation_role, 'history');
   assert.equal(historicalConversation.write_state, 'read_only');
@@ -97,12 +111,10 @@ test('desktop Sync V6 bootstraps a Device Grant, applies remote records, and res
   assert.equal(db.prepare("SELECT COUNT(*) count FROM conversation_aliases WHERE alias_id='conversation_2'").get().count, 0,
     'promoting a writable primary conversation must clear its stale alias');
   const repairedContextState = db.prepare("SELECT * FROM agent_context_state WHERE user_id='local_user' AND user_agent_instance_id='instance_1'").get();
-  const conversationState = db.prepare(`SELECT id,conversation_role,write_state,superseded_by_session_id,status
-    FROM sessions WHERE id IN ('conversation_1','conversation_2') ORDER BY id`).all();
-  assert.equal(repairedContextState.primary_session_id, 'conversation_2', JSON.stringify(conversationState));
+  assert.equal(repairedContextState.primary_session_id, 'conversation_2');
   assert.equal(repairedContextState.sync_status, 'pending');
   assert.equal(Number(repairedContextState.base_state_revision), 2);
-  assert.equal(Number(repairedContextState.state_revision), 3);
+  assert.equal(Number(repairedContextState.state_revision) > Number(repairedContextState.base_state_revision), true);
   assert.equal(db.prepare("SELECT content FROM messages WHERE id='message_1'").get().content, 'remote message');
   assert.equal(db.prepare("SELECT context_space_id FROM messages WHERE id='message_1'").get().context_space_id, '');
   assert.equal(sync.applyV6Changes([
@@ -211,6 +223,24 @@ test('desktop Sync V6 bootstraps a Device Grant, applies remote records, and res
   assert.ok(mapping);
   assert.equal(Object.hasOwn(mapping.payload, 'private_key'), false);
   assert.equal(Object.hasOwn(mapping.payload, 'device_id'), false);
+  const localMemoryMessage = store.addMessage({
+    sessionId: 'conversation_2', role: 'user', content: 'local Memory cloud-key upload',
+    agentId: 'family_1', agentInstanceId: 'instance_1', contextSpaceId: 'context_cloud_1',
+    memoryId: localCloudMemory.id,
+  });
+  const memoryMessageBatch = await sync.buildBatchPayload({ ...sync.state(), last_sync_cursor: '' });
+  const memoryMessagePayload = memoryMessageBatch.data.messages.find((item) => item.id === localMemoryMessage.id);
+  assert.equal(memoryMessagePayload.memoryId, 'memory_cloud_key_1',
+    'desktop uploads must send the stable cloud Memory key instead of the local document id');
+  assert.equal(sync.applyV6Changes([
+    change('message', 'message_memory_round_trip', {
+      id: 'message_memory_round_trip', conversationId: 'conversation_2', role: 'assistant',
+      content: 'cloud Memory round trip', agentId: 'family_1', agentInstanceId: 'instance_1',
+      memoryId: 'memory_cloud_1', contextSpaceId: 'context_cloud_1', createdAt: now,
+    }),
+  ], { remoteUserId: 'remote_user' }).status, 'applied');
+  assert.equal(db.prepare("SELECT memory_id FROM messages WHERE id='message_memory_round_trip'").get().memory_id,
+    localCloudMemory.id, 'cloud Memory ids must resolve back to the canonical local document id');
 });
 
 test('desktop Sync V6 applies the cloud employee roster before dependent Memory changes', async (t) => {

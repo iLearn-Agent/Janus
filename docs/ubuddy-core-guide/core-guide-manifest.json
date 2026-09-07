@@ -1,0 +1,1579 @@
+{
+  "generatedAt": "2026-08-17T12:10:18.980Z",
+  "chapterCount": 11,
+  "controlCount": 84,
+  "chapters": [
+    {
+      "index": 1,
+      "title": "uBuddy 私聊界面",
+      "filename": "01-ubuddy-private-chat.png",
+      "purpose": "用于直接告诉 uBuddy 目标、切换 Task/Ask、选择 Agent、项目、Memory、权限并发送任务。",
+      "flow": "选择 Task 模式 → 输入任务要求 → 根据需要添加联系人、文件或项目 → 检查模型和权限 → 点击发送。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "添加",
+          "tag": "button",
+          "disabled": false,
+          "x": 35.0625,
+          "y": 90.8,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "button",
+            "data-composer-tool-menu-toggle": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "打开附件、文件和其他输入工具菜单。"
+        },
+        {
+          "number": 2,
+          "label": "任务",
+          "tag": "button",
+          "disabled": false,
+          "x": 38.9375,
+          "y": 90.8,
+          "width": 78,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-message-mode-toggle": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "在 Task 与 Ask 模式之间切换；Task 用于创建和执行任务。"
+        },
+        {
+          "number": 3,
+          "label": "@ 联系人 / Agent / 插件 / 文件",
+          "tag": "button",
+          "disabled": false,
+          "x": 48.26708984375,
+          "y": 90.8,
+          "width": 208.546875,
+          "height": 30,
+          "attributes": {
+            "type": "button",
+            "data-social-mention-toggle": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "打开 @ 选择器，选择联系人、Agent 或其他可提及对象。"
+        },
+        {
+          "number": 4,
+          "label": "图像生成",
+          "tag": "button",
+          "disabled": false,
+          "x": 58.15917968749999,
+          "y": 90.8,
+          "width": 96,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-composer-image-mode": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "切换到图像生成输入模式。"
+        },
+        {
+          "number": 5,
+          "label": "告诉 uBuddy 你想完成什么任务",
+          "tag": "textarea",
+          "disabled": false,
+          "x": 65.5625,
+          "y": 86.2,
+          "width": 992,
+          "height": 32,
+          "attributes": {
+            "id": "chat-input",
+            "data-chat-input-key": "session:session_3578d249-1a40-4a55-b3dc-9d84f3209ef7",
+            "data-chat-input-session": "session_3578d249-1a40-4a55-b3dc-9d84f3209ef7"
+          },
+          "location": "uBuddy 主会话；textarea #chat-input",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "更新当前界面的输入草稿或筛选条件；文本会在提交前保持在本地界面状态中。",
+          "next": "输入有效内容后，发送、确认或搜索结果控件会启用或刷新。",
+          "failure": "空值、格式不合法或必填项缺失时提交按钮保持禁用，并保留输入等待修正。",
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "number": 6,
+          "label": "模型与推理强度",
+          "tag": "button",
+          "disabled": false,
+          "x": 77.3125,
+          "y": 90.8,
+          "width": 176,
+          "height": 34,
+          "attributes": {
+            "id": "model-picker-trigger",
+            "type": "button",
+            "data-model-current": "gpt-5.6-sol",
+            "data-model-latest": "gpt-5.6-sol",
+            "data-reasoning-current": "medium"
+          },
+          "location": "uBuddy 主会话；button #model-picker-trigger",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "展开或收起“模型与推理强度”的菜单/详情区域。",
+          "next": "展开后显示该区域内的二级按钮、选项、状态说明或搜索结果。",
+          "failure": "展开/收起不提交业务数据；点击区域外、再次点击或按关闭操作可退出。",
+          "action": "选择模型和推理强度。"
+        },
+        {
+          "number": 7,
+          "label": "选择 agent",
+          "tag": "button",
+          "disabled": false,
+          "x": 88.4375,
+          "y": 90.8,
+          "width": 176,
+          "height": 34,
+          "attributes": {
+            "type": "button",
+            "data-agent-inline-trigger": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "展开或收起“选择 agent”的菜单/详情区域。",
+          "next": "展开后显示该区域内的二级按钮、选项、状态说明或搜索结果。",
+          "failure": "展开/收起不提交业务数据；点击区域外、再次点击或按关闭操作可退出。",
+          "action": "选择由哪个本机 Agent 直接参与当前任务。"
+        },
+        {
+          "number": 8,
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "x": 95.125,
+          "y": 90.8,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "提交“发送”操作；界面进入处理中或立即显示新的任务/交付状态。",
+          "next": "成功后出现结果、进度、撤销/停止、查看详情或下一步确认入口，具体取决于当前任务状态。",
+          "failure": "校验、权限、网络或执行失败时显示原因；可重试场景保留草稿和已有结果，防止重复创建。",
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        },
+        {
+          "number": 9,
+          "label": "选择项目",
+          "tag": "button",
+          "disabled": false,
+          "x": 37.21923828125,
+          "y": 95.89999999999999,
+          "width": 113.015625,
+          "height": 34,
+          "attributes": {
+            "type": "button",
+            "data-workspace-menu-toggle": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "展开或收起“选择项目”的菜单/详情区域。",
+          "next": "展开后显示该区域内的二级按钮、选项、状态说明或搜索结果。",
+          "failure": "展开/收起不提交业务数据；点击区域外、再次点击或按关闭操作可退出。",
+          "action": "选择任务使用的项目或文件工作区。"
+        },
+        {
+          "number": 10,
+          "label": "使用 Janus 原生能力整理当前线程；若原生能力不可用，才会创建本地恢复摘要",
+          "tag": "button",
+          "disabled": false,
+          "x": 43.87646484375,
+          "y": 95.89999999999999,
+          "width": 72.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-chat-clear-context": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "整理或清除当前线程上下文，开始新的上下文段。"
+        },
+        {
+          "number": 11,
+          "label": "切换或保存当前 Memory",
+          "tag": "button",
+          "disabled": false,
+          "x": 51.55322265625,
+          "y": 95.89999999999999,
+          "width": 145.640625,
+          "height": 34,
+          "attributes": {
+            "type": "button",
+            "data-composer-memory-toggle": ""
+          },
+          "location": "uBuddy 主会话；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "展开或收起“切换或保存当前 Memory”的菜单/详情区域。",
+          "next": "展开后显示该区域内的二级按钮、选项、状态说明或搜索结果。",
+          "failure": "展开/收起不提交业务数据；点击区域外、再次点击或按关闭操作可退出。",
+          "action": "切换、创建或保存当前 uBuddy Memory。"
+        },
+        {
+          "number": 12,
+          "label": "uBuddy 任务权限",
+          "tag": "button",
+          "disabled": false,
+          "x": 61.0380859375,
+          "y": 95.89999999999999,
+          "width": 129.875,
+          "height": 34,
+          "attributes": {
+            "id": "sandbox-permission-trigger",
+            "type": "button"
+          },
+          "location": "uBuddy 主会话；button #sandbox-permission-trigger",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "关闭当前菜单、抽屉或详情层，并返回上一层界面；未提交的选择不会生效。",
+          "next": "返回后可继续浏览、重新打开该界面或选择其他对象。",
+          "failure": "纯本地关闭通常无网络副作用；已提交的后台任务不会因关闭界面而停止。",
+          "action": "设置任务执行权限和审批方式。"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "公共任务群聊界面",
+      "filename": "02-public-group-chat.png",
+      "purpose": "多人协作时的公开沟通区域。群消息、共享目标、成员和公开任务进度对群成员可见。",
+      "flow": "查看共享目标和成员 → 在群消息中 @ 对应 uBuddy → 发送公开要求 → 通过“查看任务”进入具体任务。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "搜索群聊与协作进度",
+          "tag": "button",
+          "disabled": false,
+          "x": 8.1875,
+          "y": 13.5,
+          "width": 44,
+          "height": 44,
+          "attributes": {
+            "type": "button",
+            "data-collaboration-search-toggle": ""
+          },
+          "action": "打开群消息和协作进度搜索。"
+        },
+        {
+          "number": 2,
+          "label": "查看工作群参与人",
+          "tag": "button",
+          "disabled": false,
+          "x": 11.3125,
+          "y": 13.5,
+          "width": 44,
+          "height": 44,
+          "attributes": {
+            "type": "button",
+            "data-collaboration-members-toggle": ""
+          },
+          "action": "查看群成员、每位成员的 uBuddy 和参与 Agent。"
+        },
+        {
+          "number": 3,
+          "label": "群共享工作区",
+          "tag": "button",
+          "disabled": false,
+          "x": 8.625,
+          "y": 22.2,
+          "width": 216,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "role": "menuitem",
+            "data-collaboration-group-workspace": ""
+          },
+          "action": "打开群成员共同可见的文件工作区。"
+        },
+        {
+          "number": 4,
+          "label": "修改群名称",
+          "tag": "button",
+          "disabled": false,
+          "x": 8.625,
+          "y": 25.8,
+          "width": 216,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "role": "menuitem",
+            "data-collaboration-group-rename": ""
+          },
+          "action": "修改当前工作群名称。"
+        },
+        {
+          "number": 5,
+          "label": "添加成员",
+          "tag": "button",
+          "disabled": false,
+          "x": 8.625,
+          "y": 29.4,
+          "width": 216,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "role": "menuitem",
+            "data-collaboration-group-add-member": ""
+          },
+          "action": "选择新成员加入群聊，并按需要创建对应任务。"
+        },
+        {
+          "number": 6,
+          "label": "结束工作群",
+          "tag": "button",
+          "disabled": false,
+          "x": 8.625,
+          "y": 33,
+          "width": 216,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "role": "menuitem",
+            "data-collaboration-group-close": ""
+          },
+          "action": "停止未完成任务并结束工作群；历史消息保留为只读记录。"
+        },
+        {
+          "number": 7,
+          "label": "返回消息列表",
+          "tag": "button",
+          "disabled": false,
+          "x": 17.5625,
+          "y": 13.5,
+          "width": 44,
+          "height": 44,
+          "attributes": {
+            "type": "button",
+            "data-message-home-back": ""
+          },
+          "action": "返回消息列表。"
+        },
+        {
+          "number": 8,
+          "label": "形成可用于发布决策的完整方案",
+          "tag": "summary",
+          "disabled": false,
+          "x": 52.25,
+          "y": 18.3,
+          "width": 1454,
+          "height": 34,
+          "attributes": {},
+          "action": "展开最终目标、交付物、验收标准、约束和截止时间。"
+        },
+        {
+          "number": 9,
+          "label": "查看任务",
+          "tag": "button",
+          "disabled": false,
+          "x": 38.6875,
+          "y": 63.7796875,
+          "width": 62,
+          "height": 26.5,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "open_workspace",
+            "data-task-workspace-id": "group-task-1",
+            "data-task-source-conversation-id": "",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": "",
+            "data-task-return-surface": ""
+          },
+          "action": "进入该任务的独立工作区，查看动态、结果并继续沟通。"
+        },
+        {
+          "number": 10,
+          "label": "展开详情",
+          "tag": "button",
+          "disabled": false,
+          "x": 95.875,
+          "y": 83.55,
+          "width": 64,
+          "height": 30,
+          "attributes": {
+            "type": "button",
+            "data-collaboration-details-toggle": ""
+          },
+          "action": "展开右侧任务详情和参与者进度。"
+        },
+        {
+          "number": 11,
+          "label": "上传文件",
+          "tag": "button",
+          "disabled": false,
+          "x": 9.1875,
+          "y": 95,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "button",
+            "data-composer-add-files": ""
+          },
+          "action": "选择文件并作为当前消息或任务补充材料上传。"
+        },
+        {
+          "number": 12,
+          "label": "@ 提及",
+          "tag": "button",
+          "disabled": false,
+          "x": 12.660644531250002,
+          "y": 95,
+          "width": 65.140625,
+          "height": 30,
+          "attributes": {
+            "type": "button",
+            "data-social-mention-toggle": ""
+          },
+          "action": "打开 @ 选择器，选择联系人、Agent 或其他可提及对象。"
+        },
+        {
+          "number": 13,
+          "label": "输入群消息；@任意 uBuddy 可结合公开上下文答复",
+          "tag": "textarea",
+          "disabled": false,
+          "x": 52.625,
+          "y": 90.4,
+          "width": 1406,
+          "height": 32,
+          "attributes": {
+            "id": "chat-input",
+            "data-chat-input-key": "session:session_de08c9c8-1693-4e50-9c5d-7892141e47e1",
+            "data-chat-input-session": "session_de08c9c8-1693-4e50-9c5d-7892141e47e1"
+          },
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "number": 14,
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "x": 95.125,
+          "y": 95,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "单个联系人任务发布界面",
+      "filename": "03-single-contact-publish.png",
+      "purpose": "将任务交给一个明确联系人及其 uBuddy。系统不会仅凭聊天历史自动选择接收人。",
+      "flow": "选择“@ 联系人完成” → 搜索并点击联系人 → 检查输入框中的任务要求和 @ 对象 → 点击发送。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "label": "本地完成",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 45.6875,
+          "y": 31.742187500000004,
+          "width": 290,
+          "height": 78,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-execution-target": "local"
+          },
+          "number": 1,
+          "action": "改为由 uBuddy 选择一个本机 Agent 执行，不进入联系人选择。"
+        },
+        {
+          "label": "@ 联系人完成",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 64.4375,
+          "y": 31.742187500000004,
+          "width": 290,
+          "height": 78,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-execution-target": "contact"
+          },
+          "number": 2,
+          "action": "打开联系人选择器，要求用户明确选择任务接收人。"
+        },
+        {
+          "label": "@ 联系人",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 44.25439453125,
+          "y": 90.8,
+          "width": 80.140625,
+          "height": 30,
+          "attributes": {
+            "type": "button",
+            "data-social-mention-toggle": ""
+          },
+          "number": 3,
+          "action": "打开 @ 选择器，选择联系人、Agent 或其他可提及对象。"
+        },
+        {
+          "label": "搜索联系人",
+          "tag": "input",
+          "disabled": false,
+          "visible": true,
+          "x": 55.17062759399414,
+          "y": 67.59625549316407,
+          "width": 332.9300537109375,
+          "height": 35.46002197265625,
+          "attributes": {
+            "type": "search",
+            "data-project-reference-query": ""
+          },
+          "number": 4,
+          "action": "按姓名或用户名筛选联系人列表。"
+        },
+        {
+          "label": "选择联系人：林然",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 54.06250190734864,
+          "y": 76.23963317871095,
+          "width": 368.39007568359375,
+          "height": 49.74249267578125,
+          "attributes": {
+            "type": "button",
+            "role": "option",
+            "data-composer-mention-option": "",
+            "data-ubuddy-mention-principal": "user",
+            "data-ubuddy-mention-user": "core-peer-linran",
+            "data-ubuddy-mention-agent": "",
+            "data-ubuddy-mention-agent-instance": "",
+            "data-ubuddy-mention-organization": "",
+            "data-ubuddy-mention-plugin": "",
+            "data-ubuddy-mention-audience": "",
+            "data-ubuddy-mention-token": "@林然"
+          },
+          "number": 5,
+          "action": "把林然设为任务接收人，并将 @ 对象加入输入框。"
+        },
+        {
+          "label": "选择联系人：周宁",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 54.06250190734864,
+          "y": 81.50938415527344,
+          "width": 368.39007568359375,
+          "height": 49.74249267578125,
+          "attributes": {
+            "type": "button",
+            "role": "option",
+            "data-composer-mention-option": "",
+            "data-ubuddy-mention-principal": "user",
+            "data-ubuddy-mention-user": "core-peer-zhouning",
+            "data-ubuddy-mention-agent": "",
+            "data-ubuddy-mention-agent-instance": "",
+            "data-ubuddy-mention-organization": "",
+            "data-ubuddy-mention-plugin": "",
+            "data-ubuddy-mention-audience": "",
+            "data-ubuddy-mention-token": "@周宁"
+          },
+          "number": 6,
+          "action": "把周宁设为任务接收人，并将 @ 对象加入输入框。"
+        },
+        {
+          "label": "告诉 uBuddy 你想完成什么任务",
+          "tag": "textarea",
+          "disabled": false,
+          "visible": true,
+          "x": 65.5625,
+          "y": 86.2,
+          "width": 992,
+          "height": 32,
+          "attributes": {
+            "id": "chat-input",
+            "data-chat-input-key": "new-0",
+            "data-chat-input-session": "session_7b57b505-dcba-4acb-b500-ee02d063cfa5"
+          },
+          "number": 7,
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 95.125,
+          "y": 90.8,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "number": 8,
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "多人任务发布界面",
+      "filename": "04-multi-task-publish.png",
+      "purpose": "uBuddy 根据任务目标拆分多人分工，并在真正派发前让发起人确认或修改。",
+      "flow": "检查每位参与者的分工 → 必要时修改或改为全员参与 → 点击“确认派发”创建任务。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "确认派发",
+          "tag": "button",
+          "disabled": false,
+          "x": 73.0625,
+          "y": 62.409375,
+          "width": 86,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-plan-action": "确认派发"
+          },
+          "location": "协作计划确认；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "提交“确认派发”操作；界面进入处理中或立即显示新的任务/交付状态。",
+          "next": "成功后出现结果、进度、撤销/停止、查看详情或下一步确认入口，具体取决于当前任务状态。",
+          "failure": "校验、权限、网络或执行失败时显示原因；可重试场景保留草稿和已有结果，防止重复创建。",
+          "action": "按照当前多人分工创建并派发任务。"
+        },
+        {
+          "number": 2,
+          "label": "修改",
+          "tag": "button",
+          "disabled": false,
+          "x": 77.9375,
+          "y": 62.409375,
+          "width": 58,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-plan-action": "修改方案"
+          },
+          "location": "协作计划确认；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "返回规划流程，补充修改要求并重新生成分工。"
+        },
+        {
+          "number": 3,
+          "label": "全员参与",
+          "tag": "button",
+          "disabled": false,
+          "x": 82.8125,
+          "y": 62.409375,
+          "width": 86,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-plan-action": "全员参与"
+          },
+          "location": "协作计划确认；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "执行该控件对应的当前界面操作，并在原位置更新状态或打开下一层界面。",
+          "next": "操作完成后，可继续使用当前界面中与新状态匹配的按钮、输入框或详情入口。",
+          "failure": "请求失败时保留当前内容并显示错误提示；重复提交类控件在处理中会被禁用。",
+          "action": "覆盖自动筛选，让所有候选参与本次任务。"
+        },
+        {
+          "number": 4,
+          "label": "取消",
+          "tag": "button",
+          "disabled": false,
+          "x": 87.6875,
+          "y": 62.409375,
+          "width": 58,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-ubuddy-plan-action": "取消方案"
+          },
+          "location": "协作计划确认；button",
+          "visibleWhen": "当前对象、权限、功能 Gate 与任务状态满足该控件的显示条件时。",
+          "disabledWhen": "截图状态下可用；处理中、缺少必填内容、权限不足或状态终止时会禁用/隐藏。",
+          "immediate": "关闭当前菜单、抽屉或详情层，并返回上一层界面；未提交的选择不会生效。",
+          "next": "返回后可继续浏览、重新打开该界面或选择其他对象。",
+          "failure": "纯本地关闭通常无网络副作用；已提交的后台任务不会因关闭界面而停止。",
+          "action": "取消本次多人协作方案，不派发任何任务。"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "已发布任务卡及内部节点",
+      "filename": "05-published-task-card.png",
+      "purpose": "任务发布后显示当前负责人、总体进度和公开节点。截图已展开任务卡内部的“公开节点状态”，可看到已完成节点、执行中节点和完成比例。",
+      "flow": "展开公开节点状态查看进度 → 打开任务工作区继续沟通 → 需要时查看流程图或取消任务。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "label": "公开节点状态 2/4",
+          "tag": "summary",
+          "disabled": false,
+          "visible": true,
+          "x": 63.0625,
+          "y": 39.528124999999996,
+          "width": 844,
+          "height": 34,
+          "attributes": {},
+          "number": 1,
+          "action": "展开或收起接收方允许公开的任务节点和完成比例。"
+        },
+        {
+          "label": "打开任务工作区",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 40.00048828125,
+          "y": 55.528124999999996,
+          "width": 108.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "open_workspace",
+            "data-task-workspace-id": "core-published-task",
+            "data-task-source-conversation-id": "",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": "core-task-published",
+            "data-task-return-surface": "session",
+            "data-task-group-id": "",
+            "data-task-run-id": "",
+            "data-task-workspace-kind": "delegation",
+            "data-task-target-session-id": "",
+            "data-task-work-id": ""
+          },
+          "number": 2,
+          "action": "进入该任务的独立工作区，查看动态、结果并继续沟通。"
+        },
+        {
+          "label": "查看流程图",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 46.50146484375,
+          "y": 55.528124999999996,
+          "width": 84.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "open_flow_graph",
+            "data-task-workspace-id": "core-published-task",
+            "data-task-source-conversation-id": "",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": "core-task-published",
+            "data-task-return-surface": "session",
+            "data-task-group-id": "",
+            "data-task-run-id": "",
+            "data-task-workspace-kind": "delegation",
+            "data-task-target-session-id": "",
+            "data-task-work-id": ""
+          },
+          "number": 3,
+          "action": "直接打开任务流程图，查看节点依赖和执行状态。"
+        },
+        {
+          "label": "取消任务",
+          "tag": "button",
+          "disabled": false,
+          "visible": true,
+          "x": 51.87744140625,
+          "y": 55.528124999999996,
+          "width": 72.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "cancel_task",
+            "data-task-workspace-id": "core-published-task",
+            "data-task-source-conversation-id": "",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": "core-task-published",
+            "data-task-return-surface": "session",
+            "data-task-group-id": "",
+            "data-task-run-id": "",
+            "data-task-workspace-kind": "delegation",
+            "data-task-target-session-id": "",
+            "data-task-work-id": ""
+          },
+          "number": 4,
+          "action": "请求取消当前任务；确认后停止尚未完成的执行。"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "任务执行看板：动态",
+      "filename": "06-task-board-activity.png",
+      "purpose": "集中展示当前状态、执行节点、过程记录、补充消息和底部任务沟通输入框。",
+      "flow": "从任务卡打开任务工作区 → 默认进入“动态” → 查看当前进度或在底部追加要求。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "返回原对话继续沟通",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.96923828125,
+          "y": 10.5875,
+          "width": 105.015625,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "return_to_source_chat",
+            "data-task-workspace-kind": "task_run",
+            "data-task-workspace-id": "manual-workspace-task",
+            "data-task-source-conversation-id": "session_de08c9c8-1693-4e50-9c5d-7892141e47e1",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": ""
+          },
+          "action": "返回创建该任务的原始 uBuddy 对话。"
+        },
+        {
+          "number": 2,
+          "label": "动态",
+          "tag": "button",
+          "disabled": false,
+          "x": 9.06298828125,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "activity",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到动态看板，查看当前状态、执行记录和补充消息。"
+        },
+        {
+          "number": 3,
+          "label": "结果",
+          "tag": "button",
+          "disabled": false,
+          "x": 12.31396484375,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "result",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到结果看板，查看交付版本、文件和质量建议。"
+        },
+        {
+          "number": 4,
+          "label": "流程图",
+          "tag": "button",
+          "disabled": false,
+          "x": 15.93994140625,
+          "y": 18.575,
+          "width": 60.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "flow",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到流程图看板，查看任务节点和依赖关系。"
+        },
+        {
+          "number": 5,
+          "label": "查看技术详情",
+          "tag": "summary",
+          "disabled": false,
+          "x": 51.9375,
+          "y": 67.303125,
+          "width": 890,
+          "height": 18,
+          "attributes": {},
+          "action": "展开或收起节点状态、执行事件和失败诊断等技术信息。"
+        },
+        {
+          "number": 6,
+          "label": "询问进度、查看验收原因、补充要求，或说“采用第 2 版”",
+          "tag": "textarea",
+          "disabled": false,
+          "x": 52.25,
+          "y": 88.43124999999999,
+          "width": 1378,
+          "height": 65.375,
+          "attributes": {
+            "id": "task-run-workspace-input"
+          },
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "number": 7,
+          "label": "上传文件",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "button"
+          },
+          "action": "选择文件并作为当前消息或任务补充材料上传。"
+        },
+        {
+          "number": 8,
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "x": 94.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "title": "任务执行看板：结果",
+      "filename": "07-task-board-result.png",
+      "purpose": "查看当前交付版本、质量检查建议、交付文件和验收入口。",
+      "flow": "切换到“结果” → 检查摘要和文件 → 展开质量建议或正文 → 决定验收或继续修改。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "返回原对话继续沟通",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.96923828125,
+          "y": 10.5875,
+          "width": 105.015625,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "return_to_source_chat",
+            "data-task-workspace-kind": "task_run",
+            "data-task-workspace-id": "manual-workspace-task",
+            "data-task-source-conversation-id": "session_de08c9c8-1693-4e50-9c5d-7892141e47e1",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": ""
+          },
+          "action": "返回创建该任务的原始 uBuddy 对话。"
+        },
+        {
+          "number": 2,
+          "label": "动态",
+          "tag": "button",
+          "disabled": false,
+          "x": 9.06298828125,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "activity",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到动态看板，查看当前状态、执行记录和补充消息。"
+        },
+        {
+          "number": 3,
+          "label": "结果",
+          "tag": "button",
+          "disabled": false,
+          "x": 12.31396484375,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "result",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到结果看板，查看交付版本、文件和质量建议。"
+        },
+        {
+          "number": 4,
+          "label": "流程图",
+          "tag": "button",
+          "disabled": false,
+          "x": 15.93994140625,
+          "y": 18.575,
+          "width": 60.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "flow",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到流程图看板，查看任务节点和依赖关系。"
+        },
+        {
+          "number": 5,
+          "label": "预览",
+          "tag": "button",
+          "disabled": false,
+          "x": 75.4375,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-preview-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在应用内预览对应交付文件。"
+        },
+        {
+          "number": 6,
+          "label": "打开",
+          "tag": "button",
+          "disabled": false,
+          "x": 78,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-open-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "使用系统默认应用打开对应文件。"
+        },
+        {
+          "number": 7,
+          "label": "下载",
+          "tag": "button",
+          "disabled": false,
+          "x": 80.5625,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-save-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "选择保存位置并下载对应文件。"
+        },
+        {
+          "number": 8,
+          "label": "定位",
+          "tag": "button",
+          "disabled": false,
+          "x": 83.125,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-show-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在系统文件管理器中定位对应文件。"
+        },
+        {
+          "number": 9,
+          "label": "预览",
+          "tag": "button",
+          "disabled": false,
+          "x": 75.4375,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-preview-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在应用内预览对应交付文件。"
+        },
+        {
+          "number": 10,
+          "label": "打开",
+          "tag": "button",
+          "disabled": false,
+          "x": 78,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-open-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "使用系统默认应用打开对应文件。"
+        },
+        {
+          "number": 11,
+          "label": "下载",
+          "tag": "button",
+          "disabled": false,
+          "x": 80.5625,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-save-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "选择保存位置并下载对应文件。"
+        },
+        {
+          "number": 12,
+          "label": "定位",
+          "tag": "button",
+          "disabled": false,
+          "x": 83.125,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-show-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在系统文件管理器中定位对应文件。"
+        },
+        {
+          "number": 13,
+          "label": "查看正文",
+          "tag": "summary",
+          "disabled": false,
+          "x": 51.9375,
+          "y": 66,
+          "width": 1054,
+          "height": 15.75,
+          "attributes": {},
+          "action": "展开或收起当前交付版本的正文内容。"
+        },
+        {
+          "number": 14,
+          "label": "询问进度、查看验收原因、补充要求，或说“采用第 2 版”",
+          "tag": "textarea",
+          "disabled": false,
+          "x": 52.25,
+          "y": 88.43124999999999,
+          "width": 1378,
+          "height": 65.375,
+          "attributes": {
+            "id": "task-run-workspace-input"
+          },
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "number": 15,
+          "label": "上传文件",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "button"
+          },
+          "action": "选择文件并作为当前消息或任务补充材料上传。"
+        },
+        {
+          "number": 16,
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "x": 94.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "title": "任务执行看板：结果内部详情",
+      "filename": "08-task-board-result-details.png",
+      "purpose": "展示结果卡内部展开后的质量建议、正文和文件详情，便于核对任务卡内部信息。",
+      "flow": "在结果页展开“质量检查建议”和“查看正文” → 核对内容与文件 → 返回结果页继续验收。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "预览",
+          "tag": "button",
+          "disabled": false,
+          "x": 79.375,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-preview-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在应用内预览对应交付文件。"
+        },
+        {
+          "number": 2,
+          "label": "打开",
+          "tag": "button",
+          "disabled": false,
+          "x": 81.9375,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-open-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "使用系统默认应用打开对应文件。"
+        },
+        {
+          "number": 3,
+          "label": "下载",
+          "tag": "button",
+          "disabled": false,
+          "x": 84.5,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-save-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "选择保存位置并下载对应文件。"
+        },
+        {
+          "number": 4,
+          "label": "定位",
+          "tag": "button",
+          "disabled": false,
+          "x": 87.0625,
+          "y": 54.775,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-show-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22docx%22%2C%22name%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22filename%22%3A%22%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E6%96%B0%E5%93%81%E5%8F%91%E5%B8%83%E6%96%B9%E6%A1%88.docx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A48236%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在系统文件管理器中定位对应文件。"
+        },
+        {
+          "number": 5,
+          "label": "预览",
+          "tag": "button",
+          "disabled": false,
+          "x": 79.375,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-preview-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在应用内预览对应交付文件。"
+        },
+        {
+          "number": 6,
+          "label": "打开",
+          "tag": "button",
+          "disabled": false,
+          "x": 81.9375,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-open-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "使用系统默认应用打开对应文件。"
+        },
+        {
+          "number": 7,
+          "label": "下载",
+          "tag": "button",
+          "disabled": false,
+          "x": 84.5,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-save-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "选择保存位置并下载对应文件。"
+        },
+        {
+          "number": 8,
+          "label": "定位",
+          "tag": "button",
+          "disabled": false,
+          "x": 87.0625,
+          "y": 60.699999999999996,
+          "width": 36,
+          "height": 25,
+          "attributes": {
+            "type": "button",
+            "data-show-file": "%7B%22id%22%3A%22%22%2C%22remote_file_id%22%3A%22%22%2C%22remote_file_kind%22%3A%22%22%2C%22group_id%22%3A%22%22%2C%22messageId%22%3A%22%22%2C%22sessionId%22%3A%22%22%2C%22projectId%22%3A%22%22%2C%22sha256%22%3A%22%22%2C%22kind%22%3A%22xlsx%22%2C%22name%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22filename%22%3A%22%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22path%22%3A%22%2Ftmp%2Fjanus-ubuddy-manual-eq0KRP%2Fworkspace%2F%E5%8F%91%E5%B8%83%E9%A3%8E%E9%99%A9%E6%B8%85%E5%8D%95.xlsx%22%2C%22relative_path%22%3A%22%22%2C%22content_type%22%3A%22%22%2C%22type%22%3A%22%22%2C%22size%22%3A19620%2C%22fileUrl%22%3A%22%22%2C%22file_url%22%3A%22%22%2C%22preview_url%22%3A%22%22%2C%22download_url%22%3A%22%22%2C%22render_url%22%3A%22%22%2C%22office_pdf_url%22%3A%22%22%2C%22preview_render_mode%22%3A%22%22%2C%22cover_url%22%3A%22%22%2C%22slide_image_urls%22%3A%5B%5D%7D"
+          },
+          "action": "在系统文件管理器中定位对应文件。"
+        },
+        {
+          "number": 9,
+          "label": "查看正文",
+          "tag": "summary",
+          "disabled": false,
+          "x": 55.875,
+          "y": 66,
+          "width": 1054,
+          "height": 15.75,
+          "attributes": {},
+          "action": "展开或收起当前交付版本的正文内容。"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "title": "任务执行看板：流程图",
+      "filename": "09-task-board-flow.png",
+      "purpose": "按节点展示任务拆解、依赖关系、负责人和每个节点的执行状态。",
+      "flow": "切换到“流程图” → 查看节点顺序和状态 → 根据受阻节点返回动态页补充要求。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "返回原对话继续沟通",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.96923828125,
+          "y": 10.5875,
+          "width": 105.015625,
+          "height": 36,
+          "attributes": {
+            "type": "button",
+            "data-task-card-action": "return_to_source_chat",
+            "data-task-workspace-kind": "task_run",
+            "data-task-workspace-id": "manual-workspace-task",
+            "data-task-source-conversation-id": "session_de08c9c8-1693-4e50-9c5d-7892141e47e1",
+            "data-task-source-message-id": "",
+            "data-task-source-group-id": "",
+            "data-task-return-anchor-id": ""
+          },
+          "action": "返回创建该任务的原始 uBuddy 对话。"
+        },
+        {
+          "number": 2,
+          "label": "动态",
+          "tag": "button",
+          "disabled": false,
+          "x": 9.06298828125,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "activity",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到动态看板，查看当前状态、执行记录和补充消息。"
+        },
+        {
+          "number": 3,
+          "label": "结果",
+          "tag": "button",
+          "disabled": false,
+          "x": 12.31396484375,
+          "y": 18.575,
+          "width": 48.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "result",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到结果看板，查看交付版本、文件和质量建议。"
+        },
+        {
+          "number": 4,
+          "label": "流程图",
+          "tag": "button",
+          "disabled": false,
+          "x": 15.93994140625,
+          "y": 18.575,
+          "width": 60.015625,
+          "height": 32,
+          "attributes": {
+            "type": "button",
+            "data-task-workspace-view": "flow",
+            "data-task-workspace-id": "manual-workspace-task"
+          },
+          "action": "切换到流程图看板，查看任务节点和依赖关系。"
+        },
+        {
+          "number": 5,
+          "label": "询问进度、查看验收原因、补充要求，或说“采用第 2 版”",
+          "tag": "textarea",
+          "disabled": false,
+          "x": 52.25,
+          "y": 88.43124999999999,
+          "width": 1378,
+          "height": 65.375,
+          "attributes": {
+            "id": "task-run-workspace-input"
+          },
+          "action": "输入任务要求、补充说明或群消息。"
+        },
+        {
+          "number": 6,
+          "label": "上传文件",
+          "tag": "button",
+          "disabled": false,
+          "x": 10.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "button"
+          },
+          "action": "选择文件并作为当前消息或任务补充材料上传。"
+        },
+        {
+          "number": 7,
+          "label": "发送",
+          "tag": "button",
+          "disabled": false,
+          "x": 94.25,
+          "y": 94.19999999999999,
+          "width": 34,
+          "height": 34,
+          "attributes": {
+            "type": "submit"
+          },
+          "action": "发送当前内容；Task 模式下由 uBuddy 继续规划或发布任务。"
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "title": "任务执行看板：技术详情",
+      "filename": "10-task-board-technical.png",
+      "purpose": "展示任务、节点和执行事件的技术级信息，用于排查执行问题。",
+      "flow": "在动态页点击“查看技术详情” → 检查节点状态和事件 → 再次点击收起。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "查看技术详情",
+          "tag": "summary",
+          "disabled": false,
+          "x": 55.875,
+          "y": 58.403125,
+          "width": 890,
+          "height": 18,
+          "attributes": {},
+          "action": "展开或收起节点状态、执行事件和失败诊断等技术信息。"
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "title": "任务执行看板：失败诊断",
+      "filename": "11-task-board-failure.png",
+      "purpose": "任务失败时显示最后一次报错、失败节点、相关命令和可恢复信息。",
+      "flow": "查看最后一次报错 → 展开技术详情确认失败节点 → 修正要求或使用可用的重试入口。",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "controls": [
+        {
+          "number": 1,
+          "label": "查看技术详情",
+          "tag": "summary",
+          "disabled": false,
+          "x": 51.9375,
+          "y": 66.503125,
+          "width": 890,
+          "height": 18,
+          "attributes": {},
+          "action": "展开或收起节点状态、执行事件和失败诊断等技术信息。"
+        }
+      ]
+    }
+  ]
+}

@@ -35,7 +35,7 @@ test('cloud auth and friends API contract', async (t) => {
   await t.test('邮箱验证码注册成功', async () => {
     const health = await ctx.api('/healthz');
     assert.equal(health.status, 200);
-    assert.equal(health.body.status, 'ok');
+    assert.deepEqual(health.body.fileStorage, { ok: true, writable: true, explicitlyConfigured: true });
     const codeResponse = await ctx.api('/api/auth/email-code', {
       method: 'POST',
       body: { email: 'Alice@Example.com', purpose: 'register' },
@@ -48,7 +48,7 @@ test('cloud auth and friends API contract', async (t) => {
       body: {
         email: 'Alice@Example.com',
         code: ctx.lastCode('alice@example.com', 'register').code,
-        password: 'strong-password',
+        password: 'strong-password1',
         displayName: 'Alice',
       },
     });
@@ -64,7 +64,7 @@ test('cloud auth and friends API contract', async (t) => {
 
     const stored = await ctx.one('SELECT password_hash FROM users WHERE id = $1', [alice.user.id]);
     assert.ok(stored.password_hash.startsWith('pbkdf2$'));
-    assert.equal(stored.password_hash.includes('strong-password'), false);
+    assert.equal(stored.password_hash.includes('strong-password1'), false);
     const token = await ctx.one('SELECT token_hash FROM refresh_tokens WHERE user_id = $1', [alice.user.id]);
     assert.notEqual(token.token_hash, alice.refreshToken);
   });
@@ -109,7 +109,7 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(ctx.sentCodes.length - sentBefore, 1);
     const registration = await ctx.api('/api/auth/register', {
       method: 'POST',
-      body: { email, code: ctx.lastCode(email, 'register').code, password: 'burst-password', displayName: 'Burst User' },
+      body: { email, code: ctx.lastCode(email, 'register').code, password: 'burst-password1', displayName: 'Burst User' },
     });
     assert.equal(registration.status, 200);
   });
@@ -176,7 +176,7 @@ test('cloud auth and friends API contract', async (t) => {
   await t.test('重复邮箱失败', async () => {
     const response = await ctx.api('/api/auth/register', {
       method: 'POST',
-      body: { email: 'ALICE@example.com', password: 'another-password', displayName: 'Duplicate Alice' },
+      body: { email: 'ALICE@example.com', password: 'another-password1', displayName: 'Duplicate Alice' },
     });
     assert.equal(response.status, 409);
     assert.equal(response.body.error.code, 'email_already_registered');
@@ -194,7 +194,7 @@ test('cloud auth and friends API contract', async (t) => {
 
     const login = await ctx.api('/api/auth/login', {
       method: 'POST',
-      body: { identifier: 'alice@example.com', password: 'strong-password' },
+      body: { identifier: 'alice@example.com', password: 'strong-password1' },
     });
     assert.equal(login.status, 200);
     assert.equal(login.body.user.id, alice.user.id);
@@ -219,7 +219,7 @@ test('cloud auth and friends API contract', async (t) => {
 
     const preservedUsernameLogin = await ctx.api('/api/auth/login', {
       method: 'POST',
-      body: { identifier: originalUsername, password: 'strong-password' },
+      body: { identifier: originalUsername, password: 'strong-password1' },
     });
     assert.equal(preservedUsernameLogin.status, 200);
     assert.equal(preservedUsernameLogin.body.user.id, alice.user.id);
@@ -272,7 +272,7 @@ test('cloud auth and friends API contract', async (t) => {
       body: {
         email: 'alice@example.com',
         code: ctx.lastCode('alice@example.com', 'password_reset').code,
-        newPassword: 'new-strong-password',
+        newPassword: 'new-strong-password1',
       },
     });
     assert.equal(reset.status, 200);
@@ -281,13 +281,13 @@ test('cloud auth and friends API contract', async (t) => {
 
     const oldPassword = await ctx.api('/api/auth/login', {
       method: 'POST',
-      body: { identifier: 'alice@example.com', password: 'strong-password' },
+      body: { identifier: 'alice@example.com', password: 'strong-password1' },
     });
     assert.equal(oldPassword.status, 401);
 
     const newPassword = await ctx.api('/api/auth/login', {
       method: 'POST',
-      body: { identifier: 'alice@example.com', password: 'new-strong-password' },
+      body: { identifier: 'alice@example.com', password: 'new-strong-password1' },
     });
     assert.equal(newPassword.status, 200);
     alice = newPassword.body;
@@ -304,15 +304,15 @@ test('cloud auth and friends API contract', async (t) => {
       method: 'PATCH',
       headers: authHeaders(alice.accessToken),
       body: {
-        currentPassword: 'new-strong-password',
-        newPassword: 'changed-strong-password',
+        currentPassword: 'new-strong-password1',
+        newPassword: 'changed-strong-password1',
         code: ctx.lastCode('alice@example.com', 'password_change').code,
       },
     });
     assert.equal(changed.status, 200);
     const login = await ctx.api('/api/auth/login', {
       method: 'POST',
-      body: { identifier: 'alice@example.com', password: 'changed-strong-password' },
+      body: { identifier: 'alice@example.com', password: 'changed-strong-password1' },
     });
     assert.equal(login.status, 200);
     alice = login.body;
@@ -631,14 +631,19 @@ test('cloud auth and friends API contract', async (t) => {
     const capabilities = await ctx.api('/api/social/capabilities', { headers: authHeaders(alice.accessToken) });
     assert.equal(capabilities.status, 200);
     assert.equal(capabilities.body.capabilities.includes('chat-groups-v2'), true);
+    assert.equal(capabilities.body.capabilities.includes('chat-group-remarks-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('chat-group-message-withdraw-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('chat-group-files-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('conversation-inbox-archive-v1'), true);
+    assert.equal(capabilities.body.capabilities.includes('chat-group-receipts-v1'), true);
+    assert.equal(capabilities.body.capabilities.includes('chat-group-audience-mentions-v1'), true);
+    assert.equal(capabilities.body.capabilities.includes('conversation-list-remove-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('delegation-realtime-sse-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('direct-delegation-files-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('delegation-execution-lease-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('delegation-create-idempotency-v1'), true);
     assert.equal(capabilities.body.capabilities.includes('agent-work-detail-projection-v1'), true);
+    assert.equal(capabilities.body.capabilities.includes('collaboration-planned-participants-v1'), true);
     assert.equal(capabilities.body.chatGroups.audienceScope, 'account_social');
     assert.equal(capabilities.body.chatGroups.messageWithdraw, true);
     const request = {
@@ -718,6 +723,28 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(sent.status, 201);
     assert.equal(sent.body.messages.some((message) => message.content === '大家好'), true);
     assert.equal(sent.body.messages.find((message) => message.content === '大家好').sender.displayName, '群里的 Bob');
+    assert.deepEqual(sent.body.messages.find((message) => message.id === 'chat_group_message_1').receiptSummary,
+      { total: 1, read: 0, unread: 1 });
+    const readThrough = await ctx.api(`/api/chat-groups/${request.groupId}/read`, {
+      method: 'POST', headers: authHeaders(alice.accessToken),
+      body: { socialCapability: 'chat-groups-v2,chat-group-receipts-v1', readThroughMessageId: 'chat_group_message_1' },
+    });
+    assert.equal(readThrough.status, 200);
+    const receiptDetail = await ctx.api(`/api/chat-groups/${request.groupId}?capability=chat-groups-v2`, {
+      headers: authHeaders(bob.accessToken),
+    });
+    assert.deepEqual(receiptDetail.body.messages.find((message) => message.id === 'chat_group_message_1').receiptSummary,
+      { total: 1, read: 1, unread: 0 });
+    assert.equal(receiptDetail.body.messages.find((message) => message.id === 'chat_group_message_1').receiptDetails[0].userId, alice.user.id);
+
+    const everyoneMention = await ctx.api(`/api/chat-groups/${request.groupId}/messages`, {
+      method: 'POST', headers: authHeaders(bob.accessToken), body: {
+        clientMessageId: 'chat_group_everyone_1', content: '@所有人 请查看',
+        metadata: { mentions: [{ principalType: 'group_audience', audience: 'human_members', displayText: '@所有人', mentionId: 'mention_everyone_1', source: 'picker' }] },
+      },
+    });
+    assert.equal(everyoneMention.status, 201);
+    assert.equal(everyoneMention.body.messages.find((message) => message.id === 'chat_group_everyone_1').metadata.mentions[0].audience, 'human_members');
     const autoReopened = await ctx.api('/api/social/conversation-preferences?capability=conversation-inbox-archive-v1', {
       headers: authHeaders(bob.accessToken),
     });
@@ -810,6 +837,12 @@ test('cloud auth and friends API contract', async (t) => {
     });
     assert.equal(renamed.status, 200);
     assert.equal(renamed.body.group.title, '产品与设计');
+    const remarked = await ctx.api(`/api/chat-groups/${request.groupId}`, {
+      method: 'PATCH', headers: authHeaders(alice.accessToken),
+      body: { action: 'set_remark', remark: '项目评审群', clientRequestId: 'chat-remark-1' },
+    });
+    assert.equal(remarked.status, 200);
+    assert.equal(remarked.body.membership.remark, '项目评审群');
 
     const reArchived = await ctx.api('/api/social/conversation-preferences', {
       method: 'POST', headers: authHeaders(bob.accessToken),
@@ -840,6 +873,33 @@ test('cloud auth and friends API contract', async (t) => {
       headers: authHeaders(bob.accessToken),
     });
     assert.equal(archivedAfterDissolve.body.preferences.find((item) => item.conversationId === request.groupId).archived, true);
+    const dissolvedPreference = archivedAfterDissolve.body.preferences.find((item) => item.conversationId === request.groupId);
+    const missingRemoveCapability = await ctx.api('/api/social/conversation-preferences', {
+      method: 'POST', headers: authHeaders(bob.accessToken), body: {
+        socialCapability: 'conversation-inbox-archive-v1', conversationKind: 'chat_group', conversationId: request.groupId,
+        archived: true, removed: true, commandId: 'chat-group-remove-missing-capability', expectedRevision: dissolvedPreference.stateRevision,
+      },
+    });
+    assert.equal(missingRemoveCapability.status, 426);
+    const legacyRemoveRequest = await ctx.api('/api/social/conversation-preferences', {
+      method: 'POST', headers: authHeaders(bob.accessToken), body: {
+        socialCapability: 'conversation-inbox-archive-v1,conversation-list-remove-v1',
+        conversationKind: 'chat_group', conversationId: request.groupId, archived: true, removed: true,
+        commandId: 'chat-group-remove-1', expectedRevision: dissolvedPreference.stateRevision,
+      },
+    });
+    assert.equal(legacyRemoveRequest.status, 200);
+    assert.equal(legacyRemoveRequest.body.preference.archived, true);
+    assert.equal(legacyRemoveRequest.body.preference.removed, false);
+    assert.equal(legacyRemoveRequest.body.preference.removedAt, '');
+    const archivedOverview = await ctx.api('/api/chat-groups?capability=chat-groups-v2', { headers: authHeaders(bob.accessToken) });
+    assert.equal(archivedOverview.body.groups.some((group) => group.id === request.groupId), true);
+    const archivePreferences = await ctx.api('/api/social/conversation-preferences?capability=conversation-inbox-archive-v1', {
+      headers: authHeaders(bob.accessToken),
+    });
+    const archivedPreference = archivePreferences.body.preferences.find((item) => item.conversationId === request.groupId);
+    assert.equal(archivedPreference.archived, true);
+    assert.equal(archivedPreference.removed, false);
     const blocked = await ctx.api(`/api/chat-groups/${request.groupId}/messages`, {
       method: 'POST', headers: authHeaders(bob.accessToken), body: { content: '不应发送' },
     });
@@ -847,6 +907,54 @@ test('cloud auth and friends API contract', async (t) => {
   });
 
   await t.test('真实任务群、结果版本和发起人关闭闭环', async () => {
+    const autoNamed = await ctx.api('/api/collaboration/groups', {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: {
+        title: '旧的长任务标题不应直接展示',
+        clientRequestId: 'collaboration-auto-title-1',
+        metadata: { taskGroupTitle: { mode: 'auto', summary: '撰写 Agent 自我演进文章' } },
+        assignments: [{ recipientId: bob.user.id, title: '撰写文章', instruction: '撰写 Agent 自我演进文章。' }],
+      },
+    });
+    assert.equal(autoNamed.status, 201);
+    assert.equal(autoNamed.body.group.title, '撰写 Agent 自我演进文章 · Alice、Bob');
+    const autoNamedClosed = await ctx.api(`/api/collaboration/groups/${autoNamed.body.group.id}`, {
+      method: 'PATCH', headers: authHeaders(alice.accessToken), body: { action: 'close' },
+    });
+    assert.equal(autoNamedClosed.status, 200);
+
+    const plannedOfflinePeer = await ctx.registerUser('planned-offline@example.com', '测试账号 09');
+    const [plannedFriendA, plannedFriendB] = [alice.user.id, plannedOfflinePeer.user.id].sort();
+    await ctx.pool.query(`INSERT INTO friendships(id,user_a_id,user_b_id,status)
+      VALUES('planned-participant-friend',$1,$2,'accepted')`, [plannedFriendA, plannedFriendB]);
+    await ctx.api('/api/presence/heartbeat', {
+      method: 'POST', headers: authHeaders(bob.accessToken),
+      body: { deviceId: 'bob-planned-participant-test', platform: 'test', arch: 'test', hostname: 'test' },
+    });
+    const plannedPartial = await ctx.api('/api/collaboration/groups', {
+      method: 'POST', headers: authHeaders(alice.accessToken),
+      body: {
+        title: '未来发展趋势研究',
+        clientRequestId: 'collaboration-planned-participants-1',
+        presenceGate: 'online_only',
+        socialCapability: 'recipient-presence-gated-dispatch-v1',
+        plannedRecipientIds: [bob.user.id, plannedOfflinePeer.user.id],
+        metadata: {
+          taskGroupTitle: { mode: 'auto', summary: '未来发展趋势研究' },
+          plannedRecipientIds: [bob.user.id, plannedOfflinePeer.user.id],
+        },
+        assignments: [{ recipientId: bob.user.id, title: '在线研究', instruction: '先完成在线研究分工。' }],
+      },
+    });
+    assert.equal(plannedPartial.status, 201);
+    assert.deepEqual(plannedPartial.body.members.map((item) => item.userId).sort(), [alice.user.id, bob.user.id].sort());
+    assert.equal(plannedPartial.body.tasks.length, 1);
+    assert.equal(plannedPartial.body.plannedParticipants.length, 2);
+    assert.equal(plannedPartial.body.plannedParticipants.find((item) => item.userId === plannedOfflinePeer.user.id)?.status, 'awaiting_presence');
+    assert.match(plannedPartial.body.group.title, /Alice、Bob、测试账号 09$/);
+    await ctx.pool.query("DELETE FROM friendships WHERE id='planned-participant-friend'");
+
     const created = await ctx.api('/api/collaboration/groups', {
       method: 'POST',
       headers: authHeaders(alice.accessToken),
@@ -1128,6 +1236,14 @@ test('cloud auth and friends API contract', async (t) => {
     });
     assert.equal(forbiddenClose.status, 403);
 
+    const forbiddenWithdraw = await ctx.api(`/api/collaboration/tasks/${delegationId}/action`, {
+      method: 'POST',
+      headers: authHeaders(bob.accessToken),
+      body: { action: 'withdraw' },
+    });
+    assert.equal(forbiddenWithdraw.status, 403);
+    assert.equal(forbiddenWithdraw.body.error.code, 'delegation_update_forbidden');
+
     const closed = await ctx.api(`/api/collaboration/groups/${groupId}`, {
       method: 'PATCH',
       headers: authHeaders(alice.accessToken),
@@ -1135,7 +1251,18 @@ test('cloud auth and friends API contract', async (t) => {
     });
     assert.equal(closed.status, 200);
     assert.equal(closed.body.group.status, 'closed');
-    assert.equal(closed.body.tasks[0].status, 'closed');
+    assert.equal(closed.body.tasks[0].status, 'withdrawn');
+    assert.equal(closed.body.tasks[0].metadata.withdrawnFromStatus, 'revision_requested');
+    assert.equal(closed.body.terminationSummary.withdrawnCount, 1);
+    assert.deepEqual(closed.body.terminationSummary.withdrawnDelegationIds, [delegationId]);
+
+    const repeatedWithdraw = await ctx.api(`/api/collaboration/tasks/${delegationId}/action`, {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: { action: 'withdraw' },
+    });
+    assert.equal(repeatedWithdraw.status, 200);
+    assert.equal(repeatedWithdraw.body.idempotent, true);
 
     const closedGroupDownload = await ctx.raw(`/api/collaboration/files/${fileId}`, {
       headers: authHeaders(alice.accessToken),
@@ -1150,6 +1277,58 @@ test('cloud auth and friends API contract', async (t) => {
     });
     assert.equal(renameClosed.status, 409);
     assert.equal(renameClosed.body.error.code, 'collaboration_group_closed');
+
+    const removalGroup = await ctx.api('/api/collaboration/groups', {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: {
+        title: '移除成员任务状态验证',
+        clientRequestId: 'collaboration-remove-member-status-v1',
+        assignments: [{ recipientId: bob.user.id, title: '已完成任务', instruction: '这项历史任务应在移除成员后保留。' }],
+      },
+    });
+    assert.equal(removalGroup.status, 201);
+    const removalGroupId = removalGroup.body.group.id;
+    const completedRemovalTaskId = removalGroup.body.tasks.find((task) => task.recipientUserId === bob.user.id).id;
+    const ownerWithdrawTaskId = 'group_owner_withdraws_member_task';
+    const runningRemovalTaskId = 'remove_member_running_task';
+    await ctx.pool.query(`INSERT INTO collaboration_group_members(group_id,user_id,role,status)
+      VALUES($1,$2,'member','active')`, [removalGroupId, carol.user.id]);
+    await ctx.pool.query("UPDATE agent_delegations SET status='completed',metadata_json=$1::jsonb WHERE id=$2", [
+      JSON.stringify({ completionMarker: 'preserve-me' }), completedRemovalTaskId,
+    ]);
+    await ctx.pool.query(`INSERT INTO agent_delegations
+      (id,account_workspace_id,requester_user_id,recipient_user_id,title,instruction,status,group_id,metadata_json)
+      VALUES($1,'workspace_personal',$3,$4,'群主单独终止的任务','群主应能直接终止。','running',$5,'{}'::jsonb),
+            ($2,'workspace_personal',$3,$4,'仍在执行的任务','移除成员时应撤回。','running',$5,'{}'::jsonb)`, [
+      ownerWithdrawTaskId, runningRemovalTaskId, carol.user.id, bob.user.id, removalGroupId,
+    ]);
+    const ownerWithdrawsMemberTask = await ctx.api(`/api/collaboration/tasks/${ownerWithdrawTaskId}/action`, {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: { action: 'withdraw', expectedStatus: 'running' },
+    });
+    assert.equal(ownerWithdrawsMemberTask.status, 200);
+    assert.equal(ownerWithdrawsMemberTask.body.delegation.status, 'withdrawn');
+    const removedMember = await ctx.api(`/api/collaboration/groups/${removalGroupId}`, {
+      method: 'PATCH',
+      headers: authHeaders(alice.accessToken),
+      body: { action: 'remove_member', userId: bob.user.id },
+    });
+    assert.equal(removedMember.status, 200);
+    const completedAfterRemoval = removedMember.body.tasks.find((task) => task.id === completedRemovalTaskId);
+    const runningAfterRemoval = removedMember.body.tasks.find((task) => task.id === runningRemovalTaskId);
+    assert.equal(completedAfterRemoval.status, 'completed');
+    assert.equal(completedAfterRemoval.metadata.completionMarker, 'preserve-me');
+    assert.equal(runningAfterRemoval.status, 'withdrawn');
+    assert.equal(runningAfterRemoval.metadata.withdrawnFromStatus, 'running');
+    assert.equal(runningAfterRemoval.metadata.withdrawnReason, 'member_removed_by_owner');
+    const removalMessage = removedMember.body.messages.find((message) => message.metadata?.type === 'member_removed');
+    assert.deepEqual(removalMessage.metadata.withdrawnDelegationIds, [runningRemovalTaskId]);
+    assert.equal(Number((await ctx.pool.query(`SELECT count(*) AS count FROM agent_delegation_revisions
+      WHERE delegation_id=$1 AND action='withdraw' AND metadata_json->>'reason'='member_removed_by_owner'`, [runningRemovalTaskId])).rows[0].count), 1);
+    assert.equal(Number((await ctx.pool.query(`SELECT count(*) AS count FROM social_realtime_events
+      WHERE aggregate_id=$1 AND event_type='delegation.withdraw'`, [runningRemovalTaskId])).rows[0].count), 2);
   });
 
   await t.test('委托双方私有 uBuddy workspace 云端持久且严格隔离', async () => {
@@ -1395,6 +1574,16 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(directSubmitted.body.delegation.status, 'submitted');
     assert.equal(directSubmitted.body.delegation.metadata.attachments[0].remote_file_kind, 'collaboration_task');
     assert.equal(Object.hasOwn(directSubmitted.body.delegation.metadata.attachments[0], 'path'), false);
+    const sharedDirectResult = await ctx.one(`SELECT sender_user_id,recipient_user_id,sender_agent_id,kind,content,metadata_json
+      FROM social_messages WHERE metadata_json->>'delegationId'=$1 AND metadata_json->>'action'='submit'`, [delegationId]);
+    assert.equal(sharedDirectResult.sender_user_id, bob.user.id);
+    assert.equal(sharedDirectResult.recipient_user_id, alice.user.id);
+    assert.equal(sharedDirectResult.sender_agent_id, 'secretary_agent');
+    assert.equal(sharedDirectResult.kind, 'agent');
+    assert.equal(sharedDirectResult.content, '直接委托文件已经完成。');
+    assert.equal(sharedDirectResult.metadata_json.attachments[0].remote_file_id, directTaskFileId);
+    assert.equal(Object.hasOwn(sharedDirectResult.metadata_json.attachments[0], 'path'), false);
+    assert.equal(Object.hasOwn(sharedDirectResult.metadata_json.attachments[0], 'source_path'), false);
     for (const accessToken of [alice.accessToken, bob.accessToken]) {
       const downloaded = await ctx.raw(`/api/collaboration/files/${directTaskFileId}`, { headers: authHeaders(accessToken) });
       assert.equal(downloaded.status, 200);
@@ -1428,6 +1617,15 @@ test('cloud auth and friends API contract', async (t) => {
     });
     assert.equal(heartbeat.status, 200);
     assert.equal(heartbeat.body.ok, true);
+    const presence = await ctx.api('/api/social/presence/query', {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: { socialCapability: 'recipient-presence-gated-dispatch-v1', userIds: [bob.user.id] },
+    });
+    assert.equal(presence.status, 200);
+    assert.deepEqual(presence.body.items.map((item) => ({ userId: item.userId, online: item.online })), [
+      { userId: bob.user.id, online: true },
+    ]);
 
     const directFileBytes = Buffer.from('DIRECT_MESSAGE_ATTACHMENT_OK\n', 'utf8');
     const directFileId = 'direct_message_attachment_contract';
@@ -1668,6 +1866,43 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(rejectedExpiredRecall.status, 409);
     assert.equal(rejectedExpiredRecall.body.error.code, 'message_withdraw_expired');
 
+    const gatedDelegation = await ctx.api('/api/delegations', {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: {
+        recipientId: bob.user.id,
+        clientRequestId: 'presence-gated-online-delegation',
+        presenceGate: 'online_only',
+        socialCapability: 'recipient-presence-gated-dispatch-v1',
+        title: '在线门禁委托',
+        instruction: '仅在接收人在线时发布。',
+      },
+    });
+    assert.equal(gatedDelegation.status, 201);
+    await ctx.pool.query("UPDATE user_presence SET last_seen_at=now() - interval '46 seconds' WHERE user_id=$1", [bob.user.id]);
+    const offlineGatedDelegation = await ctx.api('/api/delegations', {
+      method: 'POST',
+      headers: authHeaders(alice.accessToken),
+      body: {
+        recipientId: bob.user.id,
+        clientRequestId: 'presence-gated-offline-delegation',
+        presenceGate: 'online_only',
+        socialCapability: 'recipient-presence-gated-dispatch-v1',
+        title: '离线门禁委托',
+        instruction: '离线时不得写入。',
+      },
+    });
+    assert.equal(offlineGatedDelegation.status, 409);
+    assert.equal(offlineGatedDelegation.body.error.code, 'recipient_offline');
+    assert.equal(Number((await ctx.pool.query(
+      "SELECT count(*) AS count FROM agent_delegations WHERE client_request_id='presence-gated-offline-delegation'",
+    )).rows[0].count), 0);
+    await ctx.api('/api/presence/heartbeat', {
+      method: 'POST',
+      headers: authHeaders(bob.accessToken),
+      body: { deviceId: 'bob-mac', platform: 'darwin', arch: 'arm64', hostname: 'bob-device' },
+    });
+
     const delegation = await ctx.api('/api/delegations', {
       method: 'POST',
       headers: authHeaders(alice.accessToken),
@@ -1825,6 +2060,13 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(created.body.organization.role, 'owner');
     assert.equal(created.body.organization.memberCount, 1);
     assert.equal(Object.hasOwn(created.body.organization, 'verificationCode'), false);
+    const renamedOrganization = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
+      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'rename', name: 'Renamed Cloud Test Organization' },
+    });
+    assert.equal(renamedOrganization.status, 200);
+    assert.equal(renamedOrganization.body.overview.organizations.find((item) => item.id === created.body.organization.id).name, 'Renamed Cloud Test Organization');
+    const renamedWorkspace = await ctx.pool.query('SELECT name FROM account_workspaces WHERE id=$1', [`workspace_org_${created.body.organization.id}`]);
+    assert.equal(renamedWorkspace.rows[0]?.name, 'Renamed Cloud Test Organization');
     const validatedInvitationCode = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
       method: 'POST',
       headers: authHeaders(alice.accessToken),
@@ -1880,6 +2122,11 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(joined.body.organization.memberCount, 2);
     assert.ok(joined.body.organization.members.some((item) => item.user.id === alice.user.id && item.role === 'owner'));
     assert.ok(joined.body.organization.members.some((item) => item.user.id === bob.user.id && item.role === 'member'));
+    const memberRename = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
+      method: 'POST', headers: authHeaders(bob.accessToken), body: { action: 'rename', name: 'Member Rename Rejected' },
+    });
+    assert.equal(memberRename.status, 403);
+    assert.equal(memberRename.body.error.code, 'organization_owner_required');
     assert.equal(joined.body.overview.friends.some((item) => item.friend.id === alice.user.id), false, 'organization membership must not create a personal friendship');
 
     const organizationRemark = await ctx.api(`/api/friends/${alice.user.id}`, {
@@ -2039,6 +2286,70 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(joinedOrganization.memberCount, 2);
     assert.equal(overview.body.friends.some((item) => item.friend.id === bob.user.id), false);
 
+    const researchCapability = await ctx.api('/api/social/capabilities', { headers: authHeaders(alice.accessToken) });
+    assert.ok(researchCapability.body.capabilities.includes('organization-message-research-v1'));
+    const memberEnableResearch = await ctx.api(`/api/organizations/${created.body.organization.id}/research/policy`, {
+      method: 'PUT', headers: authHeaders(bob.accessToken),
+      body: { socialCapability: 'organization-message-research-v1', confirmed: true },
+    });
+    assert.equal(memberEnableResearch.status, 403);
+    assert.equal(memberEnableResearch.body.error.code, 'organization_owner_required');
+    const unconfirmedResearch = await ctx.api(`/api/organizations/${created.body.organization.id}/research/policy`, {
+      method: 'PUT', headers: authHeaders(alice.accessToken),
+      body: { socialCapability: 'organization-message-research-v1', confirmed: false },
+    });
+    assert.equal(unconfirmedResearch.status, 400);
+    const enabledResearch = await ctx.api(`/api/organizations/${created.body.organization.id}/research/policy`, {
+      method: 'PUT', headers: authHeaders(alice.accessToken),
+      body: { socialCapability: 'organization-message-research-v1', confirmed: true, confirmationTextVersion: 'v1' },
+    });
+    assert.equal(enabledResearch.status, 200);
+    assert.equal(enabledResearch.body.historicalBackfill, false);
+    const oldClientLease = await ctx.api(`/api/organizations/${created.body.organization.id}/research/lease`, {
+      method: 'POST', headers: authHeaders(bob.accessToken),
+      body: { socialCapability: 'organization-message-research-v1', deviceId: 'bob-device', appVersion: '0.3.0' },
+    });
+    assert.equal(oldClientLease.status, 426);
+    const memberLease = await ctx.api(`/api/organizations/${created.body.organization.id}/research/lease`, {
+      method: 'POST', headers: authHeaders(bob.accessToken),
+      body: { socialCapability: 'organization-message-research-v1', deviceId: 'bob-device', appVersion: '1.0.0' },
+    });
+    assert.equal(memberLease.status, 200);
+    assert.ok(memberLease.body.lease.token);
+    const badLeaseChanges = await ctx.api(`/api/organizations/${created.body.organization.id}/research/changes?capability=organization-message-research-v1&deviceId=bob-device&leaseToken=bad`, {
+      headers: authHeaders(bob.accessToken),
+    });
+    assert.equal(badLeaseChanges.status, 423);
+    const leaseQuery = new URLSearchParams({
+      capability: 'organization-message-research-v1', deviceId: 'bob-device', leaseToken: memberLease.body.lease.token,
+    });
+    const emptyChanges = await ctx.api(`/api/organizations/${created.body.organization.id}/research/changes?${leaseQuery}`, {
+      headers: authHeaders(bob.accessToken),
+    });
+    assert.equal(emptyChanges.status, 200);
+    assert.deepEqual(emptyChanges.body.changes, []);
+    const auditUpload = await ctx.api(`/api/organizations/${created.body.organization.id}/research/audits`, {
+      method: 'POST', headers: authHeaders(bob.accessToken),
+      body: {
+        deviceId: 'bob-device', leaseToken: memberLease.body.lease.token, idempotencyKey: 'bob-audit-1',
+        mode: 'offline', queryHash: 'query-hash', filters: { personIds: [alice.user.id] }, resultCount: 1,
+        citationIds: ['orgmsg:test'], createdAt: new Date().toISOString(),
+      },
+    });
+    assert.equal(auditUpload.status, 201);
+    const ownAudits = await ctx.api(`/api/organizations/${created.body.organization.id}/research/audits?scope=self`, {
+      headers: authHeaders(bob.accessToken),
+    });
+    assert.equal(ownAudits.body.audits.length, 1);
+    const organizationAudits = await ctx.api(`/api/organizations/${created.body.organization.id}/research/audits?scope=organization`, {
+      headers: authHeaders(alice.accessToken),
+    });
+    assert.equal(organizationAudits.body.audits.length, 1);
+    const outsiderPolicy = await ctx.api(`/api/organizations/${created.body.organization.id}/research/policy`, {
+      headers: authHeaders(carol.accessToken),
+    });
+    assert.equal(outsiderPolicy.status, 403);
+
     const wrongPassword = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
       method: 'POST',
       headers: authHeaders(alice.accessToken),
@@ -2051,7 +2362,7 @@ test('cloud auth and friends API contract', async (t) => {
       headers: authHeaders(alice.accessToken),
       body: {
         action: 'promote_admin', targetUserId: bob.user.id,
-        verificationCode: 'cloud-code', accountPassword: 'changed-strong-password',
+        verificationCode: 'cloud-code', accountPassword: 'changed-strong-password1',
         rememberSecondaryVerification: true,
       },
     });
@@ -2096,7 +2407,7 @@ test('cloud auth and friends API contract', async (t) => {
     const resolvedExit = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
       method: 'POST',
       headers: authHeaders(alice.accessToken),
-      body: { action: 'resolve_exit', requestId: request.id, decision: 'approve', verificationCode: 'cloud-code', accountPassword: 'changed-strong-password' },
+      body: { action: 'resolve_exit', requestId: request.id, decision: 'approve', verificationCode: 'cloud-code', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(resolvedExit.status, 200);
     const bobOverview = await ctx.api('/api/friends', { headers: authHeaders(bob.accessToken) });
@@ -2122,12 +2433,12 @@ test('cloud auth and friends API contract', async (t) => {
       method: 'POST', headers: authHeaders(bob.accessToken), body: { organizationNumber: 'CLOUD-ORG-2026', verificationCode: 'cloud-code' },
     });
     const invalidRetainAdmin = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
-      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'transfer_owner', targetUserId: bob.user.id, retainAdmin: 'false', verificationCode: 'cloud-code', accountPassword: 'changed-strong-password' },
+      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'transfer_owner', targetUserId: bob.user.id, retainAdmin: 'false', verificationCode: 'cloud-code', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(invalidRetainAdmin.status, 400);
     assert.equal(invalidRetainAdmin.body.error.code, 'organization_retain_admin_invalid');
     const transfer = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
-      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'transfer_owner', targetUserId: bob.user.id, verificationCode: 'cloud-code', accountPassword: 'changed-strong-password' },
+      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'transfer_owner', targetUserId: bob.user.id, verificationCode: 'cloud-code', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(transfer.status, 200);
     assert.equal(transfer.body.retainedAdmin, true);
@@ -2162,7 +2473,7 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(nonOwnerUpdate.body.error.code, 'organization_owner_required');
     const invitationCodeUpdate = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
       method: 'POST', headers: authHeaders(alice.accessToken),
-      body: { action: 'update_invitation_code', verificationCode: 'cloud-code', newInvitationCode: 'cloud-code-v2', accountPassword: 'changed-strong-password' },
+      body: { action: 'update_invitation_code', verificationCode: 'cloud-code', newInvitationCode: 'cloud-code-v2', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(invitationCodeUpdate.status, 200);
     assert.equal(invitationCodeUpdate.body.invitationCodeUpdated, true);
@@ -2199,7 +2510,7 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(newInvitationCode.status, 200);
     const removedMember = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
       method: 'POST', headers: authHeaders(alice.accessToken),
-      body: { action: 'remove_member', targetUserId: carol.user.id, verificationCode: 'cloud-code-v3', accountPassword: 'changed-strong-password' },
+      body: { action: 'remove_member', targetUserId: carol.user.id, verificationCode: 'cloud-code-v3', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(removedMember.status, 200);
     assert.equal(removedMember.body.overview.organizations.find((item) => item.id === created.body.organization.id).members.some((item) => item.user.id === carol.user.id), false);
@@ -2207,12 +2518,12 @@ test('cloud auth and friends API contract', async (t) => {
     assert.equal(removedMemberOverview.body.organizations.some((item) => item.id === created.body.organization.id), false);
     assert.ok(removedMemberOverview.body.organizationNotices.some((item) => item.type === 'member_removed'));
     const dissolved = await ctx.api(`/api/organizations/${defaultNumber.body.organization.id}/actions`, {
-      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'owner_exit', mode: 'dissolve', verificationCode: 'default-code', accountPassword: 'changed-strong-password' },
+      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'owner_exit', mode: 'dissolve', verificationCode: 'default-code', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(dissolved.status, 200);
     assert.equal(dissolved.body.dissolved, true);
     const ownerExit = await ctx.api(`/api/organizations/${created.body.organization.id}/actions`, {
-      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'owner_exit', mode: 'auto', retainAdmin: true, verificationCode: 'cloud-code-v3', accountPassword: 'changed-strong-password' },
+      method: 'POST', headers: authHeaders(alice.accessToken), body: { action: 'owner_exit', mode: 'auto', retainAdmin: true, verificationCode: 'cloud-code-v3', accountPassword: 'changed-strong-password1' },
     });
     assert.equal(ownerExit.status, 200);
     assert.equal(ownerExit.body.exited, true);
@@ -2376,6 +2687,11 @@ async function createTestContext() {
   const providerKeyApplications = [];
   const providerKeyDecisions = [];
   const storageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'janus-large-files-'));
+  await pool.query('CREATE TABLE schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+  await pool.query(`INSERT INTO schema_migrations(filename) VALUES
+    ('024_cluster_cohort_ledger_contract.sql'),
+    ('074_agent_instance_alias_cycle_repair.sql'),
+    ('075_sync_alias_history_snapshot_repair.sql')`);
   await migrate(pool);
   const app = createApp({
     pool,
@@ -2458,7 +2774,7 @@ async function createTestContext() {
         body: {
           email,
           code: this.lastCode(email, 'register').code,
-          password: `${displayName.toLowerCase()}-password`,
+          password: `${displayName.toLowerCase()}-password1`,
           displayName,
         },
       });

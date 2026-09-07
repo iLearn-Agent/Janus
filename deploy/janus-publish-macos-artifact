@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="${1:?release version is required}"
+RUN_ID="${2:?GitHub Actions run id is required}"
+REPOSITORY="${3:-iLearn-Agent/Janus}"
+CHANNEL="${4:-stable}"
+CLOUD_HOME="${JANUS_CLOUD_HOME:-/path/to/janus-cloud}"
+APP_REPO="${JANUS_APP_REPO:-/path/to/Janus}"
+if [[ "$CHANNEL" != "stable" && "$CHANNEL" != "test" ]]; then
+  echo "Unsupported desktop release channel: $CHANNEL" >&2
+  exit 2
+fi
+RELEASES_DIR="$([[ "$CHANNEL" == "test" ]] && echo test_releases || echo releases)"
+ARTIFACT_PREFIX="$([[ "$CHANNEL" == "test" ]] && echo Janus-Test || echo Janus)"
+INCOMING="$CLOUD_HOME/incoming/macos-$CHANNEL-$VERSION-$RUN_ID"
+ARCHIVE_DIR="${INCOMING}.artifact"
+DOWNLOAD_CONNECTIONS="${JANUS_ARTIFACT_DOWNLOAD_CONNECTIONS:-16}"
+
+if [[ ! "$DOWNLOAD_CONNECTIONS" =~ ^[0-9]+$ ]] || (( DOWNLOAD_CONNECTIONS < 1 || DOWNLOAD_CONNECTIONS > 16 )); then
+  echo "JANUS_ARTIFACT_DOWNLOAD_CONNECTIONS must be between 1 and 16." >&2
+  exit 2
+fi
+
+for command in aria2c curl gh node unzip; do
+  command -v "$command" >/dev/null || { echo "Required command not found: $command" >&2; exit 3; }
+done
+
+rm -rf "$INCOMING" "$ARCHIVE_DIR"
+mkdir -p "$INCOMING" "$ARCHIVE_DIR"
+trap 'rm -rf "$ARCHIVE_DIR"' EXIT
+
+# Prefer the server's local GitHub proxy when it is running, but keep direct
+# downloads working when the proxy service is intentionally unavailable.
+if timeout 1 bash -c 'exec 3<>/dev/tcp/127.0.0.1/7890' 2>/dev/null; then
+  export HTTP_PROXY="${HTTP_PROXY:-http://127.0.0.1:7890}"
+  export HTTPS_PROXY="${HTTPS_PROXY:-http://127.0.0.1:7890}"
+  export ALL_PROXY="${ALL_PROXY:-socks5h://127.0.0.1:7890}"
+fi
+
+ARTIFACT_NAME="$ARTIFACT_PREFIX-macOS-arm64-$VERSION"
+ARTIFACT_RECORD="$(
+  gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+    --jq '.artifacts[] | [.name, (.id | tostring), (.size_in_bytes | tostring)] | @tsv' \
+    | awk -F '\t' -v name="$ARTIFACT_NAME" '$1 == name { print $2 "\t" $3; exit }'
+)"
+IFS=$'\t' read -r ARTIFACT_ID ARTIFACT_SIZE <<< "$ARTIFACT_RECORD"
+if [[ -z "$ARTIFACT_ID" || -z "$ARTIFACT_SIZE" ]]; then
+  echo "GitHub artifact not found: $ARTIFACT_NAME" >&2
+  exit 4
+fi
+
+GITHUB_TOKEN="$(gh auth token)"
+RESPONSE_HEADERS="$(
+  printf 'header = "Authorization: Bearer %s"\nheader = "Accept: application/vnd.github+json"\nheader = "X-GitHub-Api-Version: 2022-11-28"\n' "$GITHUB_TOKEN" \
+    | curl --config - -fsS -D - -o /dev/null \
+      "https://api.github.com/repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip"
+)"
+DOWNLOAD_URL="$(
+  printf '%s\n' "$RESPONSE_HEADERS" \
+    | awk 'BEGIN { IGNORECASE=1 } /^location:/ { sub(/^[^:]+:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit }'
+)"
+if [[ -z "$DOWNLOAD_URL" ]]; then
+  echo "GitHub did not return a signed artifact download URL." >&2
+  exit 4
+fi
+
+ARIA_PROXY_ARGS=()
+if [[ -n "${HTTPS_PROXY:-}" ]]; then
+  ARIA_PROXY_ARGS+=(--all-proxy="$HTTPS_PROXY")
+elif [[ -n "${HTTP_PROXY:-}" ]]; then
+  ARIA_PROXY_ARGS+=(--all-proxy="$HTTP_PROXY")
+fi
+
+printf '%s\n' "$DOWNLOAD_URL" | aria2c \
+  --input-file=- \
+  --dir="$ARCHIVE_DIR" \
+  --file-allocation=none \
+  --max-connection-per-server="$DOWNLOAD_CONNECTIONS" \
+  --split="$DOWNLOAD_CONNECTIONS" \
+  --min-split-size=1M \
+  --max-tries=0 \
+  --retry-wait=3 \
+  --timeout=30 \
+  --summary-interval=15 \
+  "${ARIA_PROXY_ARGS[@]}"
+
+mapfile -t ARCHIVES < <(find "$ARCHIVE_DIR" -maxdepth 1 -type f ! -name '*.aria2' -print)
+if [[ "${#ARCHIVES[@]}" != 1 ]]; then
+  echo "Expected exactly one downloaded artifact archive, found ${#ARCHIVES[@]}." >&2
+  exit 4
+fi
+ARCHIVE="${ARCHIVES[0]}"
+ACTUAL_SIZE="$(stat -c %s "$ARCHIVE")"
+if [[ "$ACTUAL_SIZE" != "$ARTIFACT_SIZE" ]]; then
+  echo "Downloaded artifact size mismatch: expected $ARTIFACT_SIZE, found $ACTUAL_SIZE." >&2
+  exit 4
+fi
+unzip -tq "$ARCHIVE"
+unzip -oq "$ARCHIVE" -d "$INCOMING"
+
+cd "$APP_REPO"
+JANUS_CLOUD_HOME="$CLOUD_HOME" node scripts/register_macos_release.mjs \
+  --version "$VERSION" \
+  --incoming "$INCOMING" \
+  --releases-dir "$RELEASES_DIR"

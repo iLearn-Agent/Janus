@@ -18,7 +18,7 @@ const app = createApp({
 });
 
 const server = app.listen(config.port, config.host, () => {
-  console.info(`[janus-cloud] API listening on ${config.host}:${config.port}`);
+  console.info(`[janus-cloud] auth/friends API listening on ${config.host}:${config.port}`);
 });
 
 function shutdown() {

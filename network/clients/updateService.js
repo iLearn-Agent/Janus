@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { sendWebContentsSafely } from '../../src/shared/electronProcessSafety.js';
 import { desktopReleaseRootUrl, STABLE_DESKTOP_RELEASE_CHANNEL, TEST_DESKTOP_RELEASE_CHANNEL } from '../../src/shared/desktopReleaseChannel.js';
 import { getApplicationLogger } from '../../src/shared/logging/index.js';
-import { desktopDeploymentConfig } from '../../src/main/desktopDeploymentConfig.js';
 import { launchMacCustomInstaller, macAppBundleFromExecutable, verifyDesktopUpdatePackage } from './macosUpdateInstaller.js';
 
 const SUPPORTED_DESKTOP_PLATFORMS = new Set(['darwin', 'win32', 'linux']);
@@ -22,21 +21,20 @@ export function createUpdateService({
   verifyPackage = verifyDesktopUpdatePackage,
   signingPublicKeyLoader = (file) => fs.readFileSync(file, 'utf8'),
   onStatusChanged = null,
+  onBeforeInstall = null,
 } = {}) {
   const autoUpdater = updater;
-  const deployment = desktopDeploymentConfig();
-  const updateUrl = platformUpdateUrl(deployment.updateUrl || desktopReleaseRootUrl(releaseChannel), platform);
-  const signingPublicKeyPath = deployment.signingPublicKeyPath || defaultSigningPublicKeyPath();
+  const updateUrl = platformUpdateUrl(process.env.JANUS_UPDATE_URL || desktopReleaseRootUrl(releaseChannel), platform);
+  const signingPublicKeyPath = process.env.JANUS_RELEASE_SIGNING_PUBLIC_KEY || defaultSigningPublicKeyPath();
   const autoDownload = platform === 'linux'
     && !['0', 'false', 'no', 'off'].includes(String(process.env.JANUS_AUTO_DOWNLOAD_UPDATES || '1').toLowerCase());
   const platformReady = platformSupportsUpdates(platform);
   let pendingUpdate = null;
   let lastProgressSentAt = 0;
   const state = {
-    enabled: Boolean(updateUrl)
-      && platformReady
+    enabled: platformReady
       && !isDev
-      && deployment.updatesEnabled,
+      && !['0', 'false', 'no', 'off'].includes(String(process.env.JANUS_UPDATES_ENABLED || '1').toLowerCase()),
     autoDownload,
     checking: false,
     available: false,
@@ -78,7 +76,7 @@ export function createUpdateService({
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowPrerelease = releaseChannel === TEST_DESKTOP_RELEASE_CHANNEL;
   if (releaseChannel === TEST_DESKTOP_RELEASE_CHANNEL) autoUpdater.channel = 'latest';
-  if (updateUrl) autoUpdater.setFeedURL({ provider: 'generic', url: updateUrl });
+  autoUpdater.setFeedURL({ provider: 'generic', url: updateUrl });
 
   const startInstall = async () => {
     if (!pendingUpdate?.verified) {
@@ -95,6 +93,7 @@ export function createUpdateService({
           currentAppBundle: macAppBundleFromExecutable(app.getPath('exe')),
           appPid: process.pid,
         });
+        try { onBeforeInstall?.(); } catch {}
         updateLogger.info('update-install-started', { data: { platform, version: state.version, installMode: state.installMode } });
         setState({ message: 'Updater started. Janus will quit, replace the app, and restart.' });
         setTimeout(() => app.quit(), 250);
@@ -104,6 +103,7 @@ export function createUpdateService({
         return setState({ installing: false, lastError: String(error?.message || error), message: 'Unable to start the macOS updater.' });
       }
     }
+    try { onBeforeInstall?.(); } catch {}
     setState({ downloading: false, downloaded: false, installing: true, lastError: '', message: 'Installing update. Janus will restart.' });
     updateLogger.info('update-install-started', { data: { platform, version: state.version, installMode: state.installMode } });
     // Keep the Windows NSIS installer visible so upgrade progress and failures
@@ -289,7 +289,6 @@ function updateInstallMode(info = {}, platform = process.platform) {
 
 function platformUpdateUrl(baseUrl = '', platform = process.platform) {
   const normalized = String(baseUrl || '').replace(/\/+$/g, '');
-  if (!normalized) return '';
   if (platform === 'darwin' && !normalized.endsWith('/macos')) return `${normalized}/macos`;
   if (platform === 'win32' && !normalized.endsWith('/windows')) return `${normalized}/windows`;
   if (platform === 'linux' && !normalized.endsWith('/linux')) return `${normalized}/linux`;

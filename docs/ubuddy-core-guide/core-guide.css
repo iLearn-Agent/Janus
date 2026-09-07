@@ -1,0 +1,35 @@
+@page { size: A4 landscape; margin: 12mm; }
+* { box-sizing: border-box; }
+html { font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; color: #17202a; }
+body { margin: 0; font-size: 10pt; line-height: 1.55; }
+h1, h2, h3 { break-after: avoid; }
+h1 { margin: 0 0 7mm; font-size: 28pt; }
+h2 { margin: 7mm 0 3mm; padding-bottom: 2mm; border-bottom: 1px solid #b8c1ca; font-size: 18pt; }
+p { margin: 2mm 0 4mm; }
+.cover { height: 175mm; display: flex; flex-direction: column; justify-content: center; border-top: 8mm solid #1769e0; break-after: page; }
+.cover .kicker { color: #1769e0; font-weight: 800; letter-spacing: .04em; }
+.cover p { width: 220mm; color: #52606d; font-size: 12pt; }
+.cover .meta { margin-top: 12mm; color: #66717c; font-size: 9pt; }
+.intro { break-after: page; }
+.intro ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm 10mm; padding-left: 7mm; }
+.chapter { break-before: page; }
+.chapter-head { display: flex; justify-content: space-between; align-items: end; gap: 8mm; }
+.chapter-head span { color: #697582; font-size: 9pt; }
+.purpose { padding: 3mm 4mm; border-left: 4px solid #1769e0; background: #eef5ff; }
+.shot { position: relative; margin: 4mm 0; border: 1px solid #9ba7b3; break-inside: avoid; background: #edf1f5; }
+.shot img { width: 100%; height: auto; display: block; }
+.marker { position: absolute; width: 4.8mm; height: 4.8mm; margin: -2.4mm 0 0 -2.4mm; border-radius: 50%; background: #d42121; color: #fff; border: .55mm solid #fff; box-shadow: 0 0 0 .3mm #8f1515; text-align: center; font: 800 6.5pt/3.7mm sans-serif; z-index: 3; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 3mm 0 5mm; font-size: 9pt; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { border: 1px solid #b8c1ca; padding: 2mm 2.5mm; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #e8edf3; text-align: left; }
+th:first-child, td:first-child { width: 8%; text-align: center; }
+th:nth-child(2), td:nth-child(2) { width: 25%; }
+td:first-child { color: #a51616; font-weight: 800; }
+.flow { break-inside: avoid; padding: 3mm 4mm; background: #f6f8fa; border: 1px solid #d1d7dd; }
+.flow strong { color: #1769e0; }
+.note { color: #5e6974; }
+.sources { break-before: page; }
+code { font-family: "Noto Sans Mono CJK SC", monospace; background: #edf1f5; padding: .2mm 1mm; }
+@media screen { body { width: 297mm; margin: 0 auto; padding: 12mm; box-shadow: 0 0 16px #aeb6bf; } .chapter { break-before: auto; margin-top: 15mm; } }

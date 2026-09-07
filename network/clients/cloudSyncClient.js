@@ -49,6 +49,24 @@ export class CloudSyncClient {
     return this.fetchDeviceJson(state, `/v1/sync/v6/changes?${params.toString()}`);
   }
   syncV6Metrics(state) { return this.fetchDeviceJson(state, '/v1/sync/v6/metrics'); }
+  followerCapabilities(state, contract = {}) {
+    const params = new URLSearchParams({ contract: JSON.stringify(contract || {}) });
+    return this.fetchDeviceJson(state, `/v1/follower/capabilities?${params.toString()}`);
+  }
+  pushFollowerReports(state, payload = {}) {
+    return this.fetchDeviceJson(state, '/v1/follower/reports/batch', { method: 'POST', body: JSON.stringify(payload) });
+  }
+  followerReportChanges(state, { workspaceId = 'workspace_personal', cursor = '', limit = 200, contract = {} } = {}) {
+    const params = new URLSearchParams({ workspaceId, cursor, limit: String(limit), contract: JSON.stringify(contract || {}) });
+    return this.fetchDeviceJson(state, `/v1/follower/reports/changes?${params.toString()}`);
+  }
+  pushFollowerFollowups(state, payload = {}) {
+    return this.fetchDeviceJson(state, '/v1/follower/followups/batch', { method: 'POST', body: JSON.stringify(payload) });
+  }
+  followerFollowupMessages(state, { workspaceId = 'workspace_personal', reportId = '', contract = {} } = {}) {
+    const params = new URLSearchParams({ workspaceId, reportId, contract: JSON.stringify(contract || {}) });
+    return this.fetchDeviceJson(state, `/v1/follower/followups/messages?${params.toString()}`);
+  }
   rewrapTaskKey(state, payload = {}) {
     return this.fetchDeviceJson(state, '/v1/sync/v6/task-keys/rewrap', { method: 'POST', body: JSON.stringify(payload) });
   }
@@ -117,6 +135,36 @@ export class CloudSyncClient {
 
   evolutionCapabilities(state) {
     return this.fetchEvolutionJson(state, '/v1/evolution/capabilities');
+  }
+
+  ensureFollowerServiceInstance(state, payload = {}) {
+    return this.fetchEvolutionJson(state, '/v1/follower/evolution/service-instance', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  updateFollowerServiceInstance(state, payload = {}) {
+    return this.fetchEvolutionJson(state, '/v1/follower/evolution/service-instance', { method: 'PATCH', body: JSON.stringify(payload) });
+  }
+
+  followerEvolutionStatus(state, { workspaceId = 'workspace_personal', contract = {} } = {}) {
+    const params = new URLSearchParams({ workspaceId, contract: JSON.stringify(contract || {}) });
+    return this.fetchEvolutionJson(state, `/v1/follower/evolution/status?${params.toString()}`);
+  }
+
+  uploadFollowerEvidence(state, payload = {}) {
+    return this.fetchEvolutionJson(state, '/v1/follower/evolution/evidence/batch', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  rollbackFollowerPersonalVersion(state, payload = {}) {
+    return this.fetchEvolutionJson(state, '/v1/follower/evolution/personal/rollback', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  decideFollowerPersonalVersion(state, payload = {}) {
+    return this.fetchEvolutionJson(state, '/v1/follower/evolution/personal/decision', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  followerSystemBundle(state, { currentBundleId = '', appVersion = '', contract = {} } = {}) {
+    const params = new URLSearchParams({ currentBundleId, appVersion, contract: JSON.stringify(contract || {}) });
+    return this.fetchEvolutionJson(state, `/v1/follower/evolution/system-bundle?${params.toString()}`);
   }
 
   evolutionPreference(state) {

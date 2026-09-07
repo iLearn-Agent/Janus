@@ -1,0 +1,83 @@
+.personal-evolution-view { padding: 28px; overflow: auto; display: grid; gap: 22px; }
+.personal-evolution-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.personal-evolution-head h1 { margin: 4px 0 8px; }
+.personal-evolution-head p, .personal-provider-boundary span { color: var(--muted); }
+.personal-provider-boundary { max-width: 430px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); display: grid; gap: 5px; }
+.personal-readiness-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.personal-readiness-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; background: rgba(127,127,127,.08); font-size: 11px; line-height: 1.3; }
+.personal-readiness-chip i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 999px; background: #94a3b8; }
+.personal-readiness-chip.is-ready { color: #287553; background: rgba(40,117,83,.1); }
+.personal-readiness-chip.is-ready i { background: #2f9a6b; }
+.personal-readiness-chip.is-unavailable { color: #9a641c; background: rgba(195,128,34,.11); }
+.personal-readiness-chip.is-unavailable i { background: #d08a2f; }
+.personal-state-notice { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.personal-state-notice > span { display: grid; gap: 3px; }
+.personal-state-notice small { color: var(--muted); }
+.personal-state-notice.is-warning { border-color: rgba(208,138,47,.35); background: rgba(208,138,47,.08); }
+.personal-state-notice.is-running { border-color: rgba(55,112,183,.35); background: rgba(55,112,183,.08); }
+.personal-state-notice.is-running > i, .personal-card-running i { width: 15px; height: 15px; flex: 0 0 auto; border: 2px solid rgba(55,112,183,.25); border-top-color: #3770b7; border-radius: 999px; animation: personal-evolution-spin .8s linear infinite; }
+.personal-grant-panel { max-width: none; }
+.personal-grant-panel > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.personal-grant-panel > summary::-webkit-details-marker { display: none; }
+.personal-grant-panel > summary span { display: grid; gap: 4px; }
+.personal-grant-panel > summary small { color: var(--muted); font-weight: 400; }
+.personal-grant-panel > summary em { color: var(--muted); font-size: 12px; font-style: normal; }
+.personal-grant-panel > summary em::after { content: '· 展开'; margin-left: 6px; }
+.personal-grant-panel[open] > summary em::after { content: '· 收起'; }
+.personal-grant-content { display: grid; gap: 10px; padding-top: 12px; }
+.personal-grant-content > header, .personal-grant-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.personal-grant-content > header > span { color: var(--muted); }
+.personal-grant-row span { display: grid; gap: 4px; }
+.personal-grant-row { padding-top: 10px; border-top: 1px solid var(--line); }
+.personal-grant-row > span { min-width: 0; }
+.personal-grant-row > span strong, .personal-grant-row > span small { overflow-wrap: anywhere; }
+.personal-grant-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.personal-evolution-instance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.personal-instance-card, .personal-proposal-card, .personal-proposal-list { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: 16px; }
+.personal-instance-card.is-selected { border-color: #4f7fbe; box-shadow: 0 0 0 3px rgba(79, 127, 190, .12); }
+.personal-instance-card.is-running { border-color: rgba(55,112,183,.55); }
+.personal-selected-hint { margin: 12px 0 0; padding: 7px 9px; border-radius: 9px; color: #315f98; background: rgba(79, 127, 190, .1); font-size: 12px; font-weight: 600; }
+.personal-card-running { display: flex; align-items: center; gap: 9px; margin: 12px 0 0; padding: 8px 10px; border-radius: 9px; color: #315f98; background: rgba(55,112,183,.09); font-size: 12px; }
+.personal-instance-card header, .personal-instance-card label, .personal-proposal-card > header { display: flex; justify-content: space-between; gap: 14px; }
+.personal-instance-card header div, .personal-instance-card label span { display: grid; gap: 4px; }
+.personal-instance-card code, .personal-instance-card small { color: var(--muted); }
+.personal-instance-card label { margin: 16px 0; align-items: center; }
+.personal-evidence-counts { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.personal-evidence-counts span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; }
+.personal-status-pill { display: inline-flex; width: fit-content; align-items: center; min-height: 22px; padding: 2px 7px; border-radius: 999px; color: var(--muted); background: rgba(127,127,127,.09); font-size: 11px; font-style: normal; font-weight: 650; line-height: 1.25; }
+.personal-status-pill.is-running { color: #315f98; background: rgba(55,112,183,.12); }
+.personal-status-pill.is-pending { color: #90601c; background: rgba(208,138,47,.13); }
+.personal-status-pill.is-success { color: #287553; background: rgba(40,117,83,.12); }
+.personal-status-pill.is-danger { color: #a33c42; background: rgba(190,59,67,.11); }
+.personal-instance-actions, .personal-decision-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.personal-evolution-content { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(480px, 1.5fr); gap: 16px; align-items: start; }
+.personal-proposal-list { display: grid; gap: 8px; }
+.personal-proposal-row { width: 100%; border: 1px solid transparent; border-radius: 12px; padding: 12px; background: transparent; color: inherit; display: flex; justify-content: space-between; text-align: left; cursor: pointer; }
+.personal-proposal-row:hover, .personal-proposal-row.active { border-color: var(--line); background: var(--surface-strong, rgba(127,127,127,.08)); }
+.personal-proposal-row span { display: grid; gap: 4px; }
+.personal-proposal-row small, .personal-proposal-row em { color: var(--muted); font-style: normal; }
+.personal-proposal-card { display: grid; gap: 18px; }
+.personal-proposal-card section { display: grid; gap: 10px; }
+.personal-proposal-card pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; border-radius: 12px; background: rgba(127,127,127,.08); max-height: 360px; overflow: auto; }
+.personal-proposal-metrics, .personal-eval-summary { display: flex; gap: 10px; flex-wrap: wrap; }
+.personal-proposal-metrics span, .personal-eval-summary span { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.personal-proposal-metrics span.is-running { border-color: rgba(55,112,183,.25); background: rgba(55,112,183,.07); }
+.personal-proposal-metrics span.is-pending, .personal-proposal-metrics span.is-queued { border-color: rgba(208,138,47,.25); background: rgba(208,138,47,.07); }
+.personal-proposal-metrics span.is-success { border-color: rgba(40,117,83,.25); background: rgba(40,117,83,.07); }
+.personal-proposal-metrics span.is-danger { border-color: rgba(190,59,67,.22); background: rgba(190,59,67,.06); }
+.personal-empty-state { display: grid; align-content: center; justify-items: start; min-height: 110px; gap: 6px; padding: 16px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); background: rgba(127,127,127,.025); }
+.personal-empty-state strong { color: var(--text); }
+.personal-empty-state span { max-width: 52ch; line-height: 1.55; }
+.personal-memory-operation { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.personal-memory-operation p { margin: 5px 0; }
+.personal-memory-operation small, .personal-memory-operation em { color: var(--muted); }
+.shell.theme-dark .personal-instance-card.is-selected { border-color: #719bd0; box-shadow: 0 0 0 3px rgba(113, 155, 208, .14); }
+.shell.theme-dark .personal-selected-hint { color: #a9c8ee; background: rgba(113, 155, 208, .14); }
+.shell.theme-dark .personal-card-running, .shell.theme-dark .personal-status-pill.is-running { color: #a9c8ee; }
+.shell.theme-dark .personal-readiness-chip.is-ready, .shell.theme-dark .personal-status-pill.is-success { color: #8ed2af; }
+.shell.theme-dark .personal-readiness-chip.is-unavailable, .shell.theme-dark .personal-status-pill.is-pending { color: #e7bd7d; }
+.shell.theme-dark .personal-status-pill.is-danger { color: #ef9aa0; }
+@keyframes personal-evolution-spin { to { transform: rotate(360deg); } }
+@media (max-width: 980px) { .personal-evolution-head { display: grid; } .personal-provider-boundary { max-width: none; } .personal-evolution-content { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .personal-evolution-view { padding: 18px; gap: 16px; } .personal-evolution-head { gap: 14px; } .personal-proposal-metrics > span { flex: 1 1 calc(50% - 8px); } .personal-evolution-instance-grid { grid-template-columns: minmax(0, 1fr); } .personal-instance-card header, .personal-proposal-card > header, .personal-grant-content > header, .personal-grant-row, .personal-memory-operation { align-items: stretch; flex-direction: column; } .personal-grant-actions, .personal-grant-row > div { display: flex; justify-content: flex-start; gap: 8px; } .personal-instance-actions .btn { flex: 1 1 100%; } }
+@media (prefers-reduced-motion: reduce) { .personal-state-notice.is-running > i, .personal-card-running i { animation: none; } }

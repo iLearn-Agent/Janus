@@ -5,7 +5,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { apiError, errorResponse, mapPgError } from './errors.mjs';
-import { cloudDatabaseReadiness, inTransaction } from './db.mjs';
+import { inTransaction } from './db.mjs';
 import {
   evolutionEncryptionReady,
   evolutionEnvelopePublicKeyringFromEnv,
@@ -14,6 +14,16 @@ import {
 } from '../../src/shared/evolution/index.js';
 import { createExpressNetworkMiddleware, route } from '../../network/server/express.js';
 import { profileAvatarUrlValidation } from '../../src/shared/profileAvatar.js';
+import { normalizeMessageReactionMetadata, toggleMessageReaction } from '../../src/shared/messageReactions.js';
+import { normalizePublicTaskSummary } from '../../src/shared/contracts/taskSummary.js';
+import {
+  ORGANIZATION_RESEARCH_CAPABILITY,
+  registerOrganizationResearchRoutes,
+} from './modules/organizationResearch/index.mjs';
+import {
+  UBUDDY_ORGANIZATION_EVOLUTION_CAPABILITY,
+  registerUBuddyOrganizationEvolutionRoutes,
+} from './modules/organizationEvolution/index.mjs';
 
 const BUILD_PACKAGE = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 const BUILD_VERSION = String(BUILD_PACKAGE.version || '').trim();
@@ -118,8 +128,14 @@ import { createPostgresAuthoritativeEvidence } from './modules/evolution/authori
 import { registerEmployeeRoutes } from './modules/employees/index.mjs';
 import { registerWorkMemoryRoutes } from './modules/work-memory/index.mjs';
 import { registerSyncRoutes } from './modules/sync/index.mjs';
+import { registerFollowerRoutes } from './modules/follower/index.mjs';
 import { releaseArtifactFile } from '../../src/shared/releaseLayout.js';
 import { normalizeMentionEntities } from '../../src/shared/contracts/mentions.js';
+import {
+  automaticTaskGroupTitleSummary,
+  buildTaskGroupTitle,
+  manualTaskGroupTitleMetadata,
+} from '../../src/shared/taskGroupTitle.js';
 import {
   normalizeUBuddyCapabilityProfile,
   validateUBuddyCapabilityProfile,
@@ -131,6 +147,95 @@ const FAST_FILE_LIMIT_BYTES = 60 * 1024 * 1024;
 const LARGE_FILE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
 const LARGE_FILE_CHUNK_BYTES = 16 * 1024 * 1024;
 const LARGE_FILE_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function refreshAutomaticCollaborationGroupTitle(db, groupId = '') {
+  const group = await one(db, 'SELECT metadata_json FROM collaboration_groups WHERE id=$1', [groupId]);
+  const summary = automaticTaskGroupTitleSummary(jsonObject(group?.metadata_json));
+  if (!summary) return;
+  const participants = await many(db, `SELECT u.id,u.email,u.display_name,u.username
+    FROM collaboration_group_members m JOIN users u ON u.id=m.user_id
+    WHERE m.group_id=$1 AND m.status='active'
+    ORDER BY CASE WHEN m.role='owner' THEN 0 ELSE 1 END,m.joined_at`, [groupId]);
+  await db.query('UPDATE collaboration_groups SET title=$1,updated_at=now() WHERE id=$2', [
+    buildTaskGroupTitle({ objective: summary, participants }), groupId,
+  ]);
+}
+
+const VOICE_TERMINAL_STATUSES = new Set(['ended', 'rejected', 'cancelled', 'missed', 'failed']);
+
+async function appendVoiceCallStateEvent(db, { callId, eventType, actorUserId, payload = {} } = {}) {
+  const payloadJson = JSON.stringify(payload || {});
+  const duplicate = await one(db, `SELECT id FROM voice_call_events
+    WHERE call_id=$1 AND event_type=$2 AND actor_user_id=$3 AND payload_json=$4::jsonb LIMIT 1`, [callId, eventType, actorUserId, payloadJson]);
+  if (duplicate) return duplicate;
+  const sequenceRow = await one(db, 'SELECT COALESCE(MAX(sequence),0)+1 AS next_sequence FROM voice_call_events WHERE call_id=$1', [callId]);
+  const sequence = Number(sequenceRow?.next_sequence || 1);
+  await db.query(`INSERT INTO voice_call_events(id,call_id,sequence,event_type,actor_user_id,payload_json)
+    VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(call_id,sequence) DO NOTHING`, [
+    newId('voice_event'), callId, sequence, eventType, actorUserId, payloadJson,
+  ]);
+}
+
+async function persistVoiceCallSignalState(db, {
+  callId = '', type = '', senderId = '', recipientId = '', accountWorkspaceId = 'workspace_personal',
+  senderProfile = {}, callerName = '', payload = {},
+} = {}) {
+  const id = String(callId || '').trim();
+  const actor = String(senderId || '').trim();
+  const peer = String(recipientId || '').trim();
+  if (!id || !actor || !peer) throw apiError('call_signal_invalid', '通话信令参数不完整。', 400);
+  const existing = await one(db, 'SELECT * FROM voice_call_sessions WHERE id=$1', [id]);
+  if (type === 'invite') {
+    if (existing && existing.account_workspace_id !== accountWorkspaceId) {
+      throw apiError('call_state_workspace_mismatch', '通话不属于当前工作区。', 409);
+    }
+    if (existing && VOICE_TERMINAL_STATUSES.has(String(existing.status || ''))) {
+      throw apiError('call_state_terminal', '该通话已经结束。', 409);
+    }
+    if (!existing) {
+      await db.query(`INSERT INTO voice_call_sessions
+        (id,account_workspace_id,kind,caller_user_id,status,request_payload_hash)
+        VALUES($1,$2,'direct',$3,'ringing',$4)`, [
+        id, accountWorkspaceId, actor,
+        crypto.createHash('sha256').update(JSON.stringify({ actor, peer, payload })).digest('hex'),
+      ]);
+    }
+    await db.query(`INSERT INTO voice_call_participants(call_id,user_id,role,status,display_name_snapshot)
+      VALUES($1,$2,'host','joined',$3) ON CONFLICT(call_id,user_id) DO NOTHING`, [id, actor, callerName || senderProfile.displayName || '']);
+    await db.query(`INSERT INTO voice_call_participants(call_id,user_id,role,status)
+      VALUES($1,$2,'member','invited') ON CONFLICT(call_id,user_id) DO NOTHING`, [id, peer]);
+    await appendVoiceCallStateEvent(db, { callId: id, eventType: 'invite', actorUserId: actor, payload: { recipientId: peer } });
+    return;
+  }
+  if (!existing) throw apiError('call_state_not_found', '通话不存在或已过期。', 409);
+  if (existing.account_workspace_id !== accountWorkspaceId) throw apiError('call_state_workspace_mismatch', '通话不属于当前工作区。', 409);
+  const participant = await one(db, 'SELECT status FROM voice_call_participants WHERE call_id=$1 AND user_id=$2', [id, actor]);
+  if (!participant) throw apiError('call_state_forbidden', '你不是该通话参与者。', 403);
+  const current = String(existing.status || '');
+  if (VOICE_TERMINAL_STATUSES.has(current)) throw apiError('call_state_terminal', '该通话已经结束。', 409);
+  if (type === 'accept') {
+    if (current !== 'ringing' || actor === String(existing.caller_user_id || '')) throw apiError('call_state_transition_invalid', '当前状态不允许接听。', 409);
+    await db.query("UPDATE voice_call_sessions SET status='active',answered_at=COALESCE(answered_at,now()),last_activity_at=now(),version=version+1,updated_at=now() WHERE id=$1", [id]);
+    await db.query("UPDATE voice_call_participants SET status='joined',joined_at=COALESCE(joined_at,now()),updated_at=now() WHERE call_id=$1 AND user_id=$2", [id, actor]);
+    await appendVoiceCallStateEvent(db, { callId: id, eventType: type, actorUserId: actor });
+    return;
+  }
+  if (['offer', 'answer', 'ice-candidate'].includes(type)) {
+    if (!['ringing', 'active'].includes(current)) throw apiError('call_state_transition_invalid', '当前状态不允许媒体协商。', 409);
+    await db.query('UPDATE voice_call_sessions SET last_activity_at=now(),version=version+1,updated_at=now() WHERE id=$1', [id]);
+    await appendVoiceCallStateEvent(db, { callId: id, eventType: type, actorUserId: actor, payload: {
+      hasSdp: Boolean(payload?.sdp), hasCandidate: Boolean(payload?.candidate),
+      mediaHash: crypto.createHash('sha256').update(JSON.stringify(payload?.sdp || payload?.candidate || {})).digest('hex'),
+    } });
+    return;
+  }
+  if (['reject', 'cancel', 'hangup'].includes(type)) {
+    const next = type === 'reject' ? 'rejected' : type === 'cancel' ? 'cancelled' : 'ended';
+    await db.query('UPDATE voice_call_sessions SET status=$2,ended_at=COALESCE(ended_at,now()),last_activity_at=now(),version=version+1,updated_at=now() WHERE id=$1', [id, next]);
+    await db.query("UPDATE voice_call_participants SET status=CASE WHEN $2='rejected' THEN 'rejected' ELSE 'left' END,left_at=COALESCE(left_at,now()),updated_at=now() WHERE call_id=$1", [id, next]);
+    await appendVoiceCallStateEvent(db, { callId: id, eventType: type, actorUserId: actor, payload: { reason: payload?.reason || '' } });
+  }
+}
 
 function providerKeyApplicationPayload(row = {}) {
   return {
@@ -275,33 +380,13 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
   const emailCodeRequests = new Map();
 
   app.get('/healthz', route(async (_req, res) => {
-    res.json({ ok: true, status: 'ok', version: BUILD_VERSION });
-  }));
-
-  app.get('/readyz', route(async (_req, res) => {
-    const database = await cloudDatabaseReadiness(pool);
-    const storageConfigured = Boolean(
-      String(env.JANUS_S3_ENDPOINT || '').trim()
-      && String(env.JANUS_S3_BUCKET || '').trim()
-      && String(env.JANUS_S3_ACCESS_KEY_ID || '').trim()
-      && String(env.JANUS_S3_SECRET_ACCESS_KEY || '').trim()
-    );
-    const ready = database.ready && largeFileStorage.available !== false && storageConfigured;
-    res.status(ready ? 200 : 503).json({
-      ok: ready,
-      status: ready ? 'ready' : 'not_ready',
-      version: BUILD_VERSION,
-      database,
-      fileStorage: largeFileStorage,
-      objectStorage: { configured: storageConfigured },
-    });
+    await pool.query('SELECT 1');
+    res.json({ ok: true, status: 'ok', version: BUILD_VERSION, fileStorage: largeFileStorage });
   }));
 
   app.get('/v1/releases/latest', route(async (req, res) => {
-    const releaseHome = String(env.JANUS_RELEASE_STORAGE_ROOT || '').trim();
-    if (!releaseHome) throw apiError('release_service_unconfigured', 'Release service is not configured.', 404);
     const release = latestPublishedRelease({
-      home: releaseHome,
+      home: env.JANUS_CLOUD_HOME || '/path/to/janus-cloud',
       channel: req.query.channel || 'dev',
       platform: req.query.platform || '',
       arch: req.query.arch || '',
@@ -312,8 +397,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
   }));
 
   app.get('/v1/releases/artifacts/*artifact', route(async (req, res) => {
-    const home = String(env.JANUS_RELEASE_STORAGE_ROOT || '').trim();
-    if (!home) throw apiError('release_service_unconfigured', 'Release service is not configured.', 404);
+    const home = env.JANUS_CLOUD_HOME || '/path/to/janus-cloud';
     const relativeArtifact = Array.isArray(req.params.artifact)
       ? req.params.artifact.join('/')
       : String(req.params.artifact || '');
@@ -326,6 +410,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
 
   const deviceGrants = registerSyncRoutes({ app, pool, auth, route, apiError, env, objectStore });
   registerEvolutionRoutes({ app, pool, auth, route, apiError, deviceGrants, env });
+  registerFollowerRoutes({ app, pool, auth, route, apiError, env });
   registerEmployeeRoutes({ app, pool, apiError });
   registerWorkMemoryRoutes({ app, pool, auth, route, apiError, env });
 
@@ -835,10 +920,200 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
   }));
 
   app.get('/api/social/capabilities', auth, route(async (_req, res) => {
-    res.json({ capabilities: ['chat-groups-v1', 'chat-groups-v2', 'chat-group-message-withdraw-v1', 'chat-group-files-v1', 'resumable-file-transfer-v1', 'account-social-direct-v1', 'conversation-inbox-archive-v1', 'delegation-realtime-sse-v1', 'delegation-execution-lease-v1', 'delegation-create-idempotency-v1', 'direct-delegation-files-v1', 'contact-remarks-v1', 'membership-display-names-v1', 'ubuddy-capability-profile-v1', 'agent-work-detail-projection-v1'], chatGroups: {
-      enabled: true, version: 2, audienceScope: 'account_social', messageWithdraw: true,
+    const groupRemarkColumn = await one(pool, `SELECT 1 FROM information_schema.columns
+      WHERE table_schema=current_schema() AND table_name='chat_group_members' AND column_name='remark'`);
+    const capabilities = ['chat-groups-v1', 'chat-groups-v2', 'chat-group-message-withdraw-v1', 'chat-group-files-v1', 'chat-group-receipts-v1', 'chat-group-audience-mentions-v1', 'conversation-list-remove-v1', 'resumable-file-transfer-v1', 'account-social-direct-v1', 'message-reactions-v1', 'conversation-inbox-archive-v1', 'delegation-realtime-sse-v1', 'delegation-execution-lease-v1', 'delegation-create-idempotency-v1', 'direct-delegation-files-v1', 'contact-remarks-v1', 'membership-display-names-v1', 'ubuddy-capability-profile-v1', 'agent-work-detail-projection-v1', 'recipient-presence-gated-dispatch-v1', 'collaboration-planned-participants-v1', 'emoji-favorites-v1', 'voice-call-state-v1', 'voice-call-reconnect-v1', 'voice-call-group-v1', ORGANIZATION_RESEARCH_CAPABILITY, UBUDDY_ORGANIZATION_EVOLUTION_CAPABILITY];
+    if (groupRemarkColumn) capabilities.push('chat-group-remarks-v1');
+    res.json({ capabilities, chatGroups: {
+      enabled: true, version: 2, audienceScope: 'account_social', messageWithdraw: true, receipts: true, audienceMentions: true,
     } });
   }));
+
+  app.get('/api/social/voice-call/ice-servers', auth, route(async (_req, res) => {
+    let iceServers = [];
+    try {
+      const configured = JSON.parse(String(env.JANUS_VOICE_CALL_ICE_SERVERS || '[]'));
+      if (Array.isArray(configured)) iceServers = configured;
+    } catch {
+      throw apiError('voice_call_ice_servers_invalid', '语音通话网络配置暂时不可用。', 503);
+    }
+    if (!iceServers.length) throw apiError('voice_call_ice_servers_unconfigured', '语音通话网络配置尚未完成。', 503);
+    const turnSecret = String(env.JANUS_TURN_SECRET || '').trim();
+    const ttlSeconds = Math.max(60, Math.min(3600, Number(env.JANUS_TURN_CREDENTIAL_TTL_SECONDS || 600)));
+    if (turnSecret) {
+      const username = `${Math.floor(Date.now() / 1000) + ttlSeconds}:${String(_req.auth.user.id || '')}`;
+      const credential = crypto.createHmac('sha1', turnSecret).update(username).digest('base64');
+      iceServers = iceServers.map((server) => {
+        const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+        if (!urls.some((url) => String(url || '').startsWith('turn:') || String(url || '').startsWith('turns:'))) return server;
+        return { ...server, username, credential };
+      });
+      res.json({ iceServers, expiresAt: new Date((Math.floor(Date.now() / 1000) + ttlSeconds) * 1000).toISOString() });
+      return;
+    }
+    res.json({ iceServers, expiresAt: null });
+  }));
+
+  app.get('/api/social/video-room/config', auth, route(async (req, res) => {
+    let callId = String(req.query?.callId || '').trim();
+    const groupId = String(req.query?.groupId || '').trim();
+    const workspace = await requireAccountWorkspaceAccess(
+      pool,
+      req.auth.user.id,
+      req.query?.workspaceId || req.headers['x-janus-workspace-id'],
+    );
+    const janusApi = String(env.JANUS_VIDEOROOM_API_URL || 'http://127.0.0.1:8088/janus').replace(/\/+$/, '');
+    const websocketUrl = String(env.JANUS_VIDEOROOM_WS_URL || 'wss://your-janus.example/janus').trim();
+    const apiSecret = String(env.JANUS_VIDEOROOM_API_SECRET || '').trim();
+    const tokenSecret = String(env.JANUS_VIDEOROOM_TOKEN_SECRET || '').trim();
+    const roomAdminKey = String(env.JANUS_VIDEOROOM_ADMIN_KEY || '').trim();
+    if (!apiSecret || !tokenSecret || !roomAdminKey) throw apiError('video_room_unconfigured', '多人通话服务尚未完成配置。', 503);
+    const digest = crypto.createHash('sha256').update(String(workspace.id)).digest();
+    const roomId = 2_000_000 + digest.readUInt32BE(0) % 900_000_000;
+    if (groupId) {
+      const { membership } = await requireNaturalChatGroupMember(pool, groupId, req.auth.user.id, workspace.id, { accountGlobal: naturalChatV2Requested(req) });
+      if (membership.status !== 'active') throw apiError('voice_call_group_forbidden', '你已不在该群聊中。', 403);
+      if (!callId) {
+        const active = await one(pool, `SELECT id FROM voice_call_sessions
+          WHERE account_workspace_id=$1 AND group_id=$2 AND kind='group' AND status='active'
+          ORDER BY updated_at DESC LIMIT 1`, [workspace.id, groupId]);
+        callId = active?.id || newId('voice_call');
+      }
+      if (callId) {
+        const current = await one(pool, 'SELECT * FROM voice_call_sessions WHERE id=$1', [callId]);
+        if (!current) {
+          await pool.query(`INSERT INTO voice_call_sessions(id,account_workspace_id,kind,group_id,caller_user_id,status)
+            VALUES($1,$2,'group',$3,$4,'active')`, [callId, workspace.id, groupId, req.auth.user.id]);
+        } else if (current.account_workspace_id !== workspace.id || current.group_id !== groupId
+          || VOICE_TERMINAL_STATUSES.has(String(current.status || ''))) {
+          throw apiError('call_state_terminal', '该多人通话已经结束或不属于当前群聊。', 409);
+        }
+        const role = (current?.caller_user_id || req.auth.user.id) === req.auth.user.id ? 'host' : 'member';
+        await pool.query(`INSERT INTO voice_call_participants(call_id,user_id,role,status,joined_at)
+          VALUES($1,$2,$3,'joined',now()) ON CONFLICT(call_id,user_id) DO UPDATE SET status='joined',left_at=NULL,updated_at=now()`, [callId, req.auth.user.id, role]);
+      }
+    }
+    const janusRequest = async (url, body) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...body, apisecret: apiSecret }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.janus === 'error') {
+        throw apiError('video_room_unavailable', '多人通话服务暂时不可用。', 503);
+      }
+      return payload;
+    };
+    const transaction = () => `vr_${crypto.randomBytes(8).toString('hex')}`;
+    const session = await janusRequest(janusApi, { janus: 'create', transaction: transaction() });
+    const sessionId = session?.data?.id;
+    if (!sessionId) throw apiError('video_room_unavailable', '多人通话会话创建失败。', 503);
+    try {
+      const attached = await janusRequest(`${janusApi}/${sessionId}`, {
+        janus: 'attach', plugin: 'janus.plugin.videoroom', transaction: transaction(),
+      });
+      const handleId = attached?.data?.id;
+      if (!handleId) throw apiError('video_room_unavailable', '多人通话插件连接失败。', 503);
+      const created = await janusRequest(`${janusApi}/${sessionId}/${handleId}`, {
+        janus: 'message', transaction: transaction(),
+        body: {
+          request: 'create', room: roomId, description: `Janus workspace ${workspace.id}`,
+          publishers: 20, bitrate: 0, audiocodec: 'opus', videocodec: 'vp8,vp9,h264',
+          permanent: false, admin_key: roomAdminKey,
+        },
+      });
+      let result = created?.plugindata?.data || {};
+      // Janus 1.4 returns an event/error_code=427 when a room already
+      // exists (older versions returned videoroom=exists). Treat both forms
+      // as idempotent, but verify the room explicitly before issuing a token.
+      if (result.error_code === 427 || /already exists/i.test(String(result.error || ''))) {
+        const existing = await janusRequest(`${janusApi}/${sessionId}/${handleId}`, {
+          janus: 'message', transaction: transaction(),
+          body: { request: 'exists', room: roomId, admin_key: roomAdminKey },
+        });
+        result = existing?.plugindata?.data || {};
+      }
+      if (result.videoroom === 'exists' && result.exists === false) {
+        throw apiError('video_room_unavailable', '多人通话房间不存在。', 503);
+      }
+      if (result.videoroom !== 'created' && !(result.videoroom === 'success' && result.exists === true)
+        && result.videoroom !== 'exists') {
+        throw apiError('video_room_unavailable', '多人通话房间创建失败。', 503);
+      }
+      const expiresAtSeconds = Math.floor(Date.now() / 1000) + 3_600;
+      const tokenData = `${expiresAtSeconds},janus,janus.plugin.videoroom`;
+      const tokenSignature = crypto.createHmac('sha256', tokenSecret).update(tokenData).digest('base64');
+      const callSession = callId ? await one(pool, 'SELECT caller_user_id FROM voice_call_sessions WHERE id=$1', [callId]) : null;
+      res.json({
+        websocketUrl, roomId, workspaceId: workspace.id, groupId, callId,
+        callerId: callSession?.caller_user_id || req.auth.user.id, publishers: 20,
+        token: `${tokenData}:${tokenSignature}`,
+        expiresAt: new Date(expiresAtSeconds * 1000).toISOString(),
+      });
+    } finally {
+      await fetch(`${janusApi}/${sessionId}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ janus: 'destroy', transaction: transaction(), apisecret: apiSecret }),
+      }).catch(() => {});
+    }
+  }));
+
+  app.get('/api/social/emoji-favorites', auth, route(async (req, res) => {
+    const rows = await many(pool, `SELECT id,kind,value,filename,content_type,size_bytes,sha256,sort_order,created_at,updated_at
+      FROM emoji_favorites WHERE user_id=$1 ORDER BY sort_order ASC,created_at ASC LIMIT 300`, [req.auth.user.id]);
+    res.json({ items: rows.map((row) => ({ ...row, url: row.kind === 'image' ? `/api/social/emoji-favorites/${encodeURIComponent(row.id)}` : '' })) });
+  }));
+
+  app.put('/api/social/emoji-favorites/:favoriteId', auth, express.raw({ type: 'application/octet-stream', limit: '2mb' }), route(async (req, res) => {
+    const favoriteId = String(req.params.favoriteId || '').trim().slice(0, 200);
+    const kind = String(req.headers['x-janus-emoji-kind'] || 'image').trim() === 'unicode' ? 'unicode' : 'image';
+    const value = decodeURIComponent(String(req.headers['x-janus-emoji-value'] || '').trim()).slice(0, 100);
+    const filename = collaborationFilename(req.headers['x-janus-filename']);
+    const contentType = String(req.headers['x-janus-content-type'] || 'application/octet-stream').trim().slice(0, 100);
+    const data = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
+    if (!favoriteId) throw apiError('emoji_favorite_id_required', '缺少收藏表情 ID。', 400);
+    if (kind === 'image' && (!data.length || data.length > 2 * 1024 * 1024)) throw apiError('emoji_favorite_size_invalid', '表情图片必须在 2 MB 以内。', 413);
+    if (kind === 'image' && !['image/png','image/jpeg','image/webp','image/gif'].includes(contentType)) throw apiError('emoji_favorite_type_invalid', '仅支持 PNG、JPG、WebP、GIF。', 400);
+    const sha256 = crypto.createHash('sha256').update(kind === 'image' ? data : value).digest('hex');
+    const claimed = String(req.headers['x-janus-file-sha256'] || '').trim().toLowerCase();
+    if (claimed && claimed !== sha256) throw apiError('emoji_favorite_hash_mismatch', '表情校验失败。', 400);
+    const existing = await one(pool, 'SELECT id FROM emoji_favorites WHERE user_id=$1 AND kind=$2 AND sha256=$3 AND value=$4', [req.auth.user.id, kind, sha256, value]);
+    if (existing && existing.id !== favoriteId) throw apiError('emoji_favorite_duplicate', '该图片已经收藏。', 409);
+    const count = await one(pool, 'SELECT COUNT(*)::int AS count FROM emoji_favorites WHERE user_id=$1', [req.auth.user.id]);
+    if (!existing && Number(count?.count || 0) >= 300) throw apiError('emoji_favorite_limit', '最多收藏 300 个表情。', 409);
+    const row = await one(pool, `INSERT INTO emoji_favorites(id,user_id,kind,value,filename,content_type,size_bytes,sha256,data,sort_order,updated_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(id) DO UPDATE SET
+      kind=excluded.kind,value=excluded.value,filename=excluded.filename,content_type=excluded.content_type,size_bytes=excluded.size_bytes,sha256=excluded.sha256,data=excluded.data,updated_at=now()
+      RETURNING id,kind,value,filename,content_type,size_bytes,sha256,sort_order,created_at,updated_at`, [favoriteId, req.auth.user.id, kind, value, filename, contentType, data.length, sha256, data.length ? data : null, Number(req.headers['x-janus-sort-order'] || 0) || 0]);
+    res.status(existing ? 200 : 201).json({ ok: true, item: { ...row, url: row.kind === 'image' ? `/api/social/emoji-favorites/${encodeURIComponent(row.id)}` : '' } });
+  }));
+
+  app.get('/api/social/emoji-favorites/:favoriteId', auth, route(async (req, res) => {
+    const row = await one(pool, 'SELECT * FROM emoji_favorites WHERE id=$1 AND user_id=$2', [String(req.params.favoriteId || '').trim(), req.auth.user.id]);
+    if (!row) throw apiError('emoji_favorite_not_found', '收藏表情不存在。', 404);
+    if (row.kind !== 'image' || !row.data) throw apiError('emoji_favorite_not_image', '该收藏不是图片。', 404);
+    res.setHeader('Content-Type', row.content_type || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(row.data);
+  }));
+
+  app.delete('/api/social/emoji-favorites/:favoriteId', auth, route(async (req, res) => {
+    await pool.query('DELETE FROM emoji_favorites WHERE id=$1 AND user_id=$2', [String(req.params.favoriteId || '').trim(), req.auth.user.id]);
+    res.json({ ok: true });
+  }));
+
+  app.patch('/api/social/emoji-favorites/order', auth, route(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((id) => String(id || '').trim()).filter(Boolean).slice(0, 300) : [];
+    await inTransaction(pool, async (client) => {
+      for (const [index, id] of ids.entries()) await client.query('UPDATE emoji_favorites SET sort_order=$1,updated_at=now() WHERE id=$2 AND user_id=$3', [index, id, req.auth.user.id]);
+    });
+    res.json({ ok: true });
+  }));
+
+  registerOrganizationResearchRoutes({ app, pool, auth });
+  registerUBuddyOrganizationEvolutionRoutes({ app, pool, auth, route, apiError });
 
   app.put('/api/social/ubuddy-profile', auth, route(async (req, res) => {
     requireUBuddyCapabilityProfileCapability(req);
@@ -1041,25 +1316,32 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     const conversationKind = normalizeConversationPreferenceKind(req.body?.conversationKind);
     const conversationId = String(req.body?.conversationId || '').trim().slice(0, 240);
     const commandId = String(req.body?.commandId || '').trim().slice(0, 240);
-    const archived = req.body?.archived === true;
+    const requestedArchived = req.body?.archived === true;
+    const requestedRemoved = req.body?.removed === true;
+    if (requestedRemoved) requireConversationRemoveCapability(req);
+    const archived = requestedArchived || requestedRemoved;
     const expectedRevision = Number(req.body?.expectedRevision || 0);
     if (!conversationId || !commandId) throw apiError('conversation_preference_identity_required', '缺少会话或命令标识。', 400);
     if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
       throw apiError('conversation_preference_revision_invalid', '会话归档版本号无效。', 400);
     }
     const target = await requireConversationPreferenceMembership(pool, { userId, conversationKind, conversationId });
+    const ended = conversationKind === 'chat_group' ? target.status === 'dissolved' : target.status === 'closed';
+    if (requestedRemoved && !ended) throw apiError('conversation_remove_active_forbidden', '只能归档已结束的群聊。', 409);
     const requestedWorkspaceId = String(req.body?.workspaceId || '').trim();
     if (requestedWorkspaceId && requestedWorkspaceId !== target.account_workspace_id) {
       throw apiError('conversation_preference_workspace_mismatch', '会话不属于指定工作空间。', 409);
     }
-    const payloadHash = stableRequestHash({ userId, workspaceId: target.account_workspace_id, conversationKind, conversationId, archived, expectedRevision });
+    const payloadHash = stableRequestHash({ userId, workspaceId: target.account_workspace_id, conversationKind, conversationId,
+      archived: requestedArchived, removed: requestedRemoved, expectedRevision });
     const preference = await inTransaction(pool, async (client) => {
       const prior = await one(client, 'SELECT * FROM social_conversation_preference_commands WHERE command_id=$1', [commandId]);
       if (prior) {
         if (prior.user_id !== userId || prior.request_payload_hash !== payloadHash) {
           throw apiError('conversation_preference_idempotency_conflict', '会话归档命令已被不同请求占用。', 409);
         }
-        return prior.response_json?.preference || prior.response_json;
+        const priorPreference = prior.response_json?.preference || prior.response_json || {};
+        return { ...priorPreference, archived: Boolean(priorPreference.archived || priorPreference.removed), removed: false, removedAt: '' };
       }
       const current = await one(client, `SELECT * FROM social_conversation_preferences
         WHERE account_workspace_id=$1 AND user_id=$2 AND conversation_kind=$3 AND conversation_id=$4 FOR UPDATE`, [
@@ -1071,10 +1353,10 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       }
       const nextRevision = currentRevision + 1;
       const updated = await one(client, `INSERT INTO social_conversation_preferences(
-        account_workspace_id,user_id,conversation_kind,conversation_id,archived,state_revision,last_command_id,source_device_id
-      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(account_workspace_id,user_id,conversation_kind,conversation_id) DO UPDATE SET
+        account_workspace_id,user_id,conversation_kind,conversation_id,archived,removed_at,state_revision,last_command_id,source_device_id
+      ) VALUES($1,$2,$3,$4,$5,NULL,$6,$7,$8) ON CONFLICT(account_workspace_id,user_id,conversation_kind,conversation_id) DO UPDATE SET
         archived=excluded.archived,state_revision=excluded.state_revision,last_command_id=excluded.last_command_id,
-        source_device_id=excluded.source_device_id,updated_at=now() RETURNING *`, [
+        removed_at=excluded.removed_at,source_device_id=excluded.source_device_id,updated_at=now() RETURNING *`, [
         target.account_workspace_id, userId, conversationKind, conversationId, archived, nextRevision, commandId,
         String(req.body?.sourceDeviceId || '').trim().slice(0, 240),
       ]);
@@ -1344,16 +1626,24 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       await client.query(`INSERT INTO chat_group_messages(id,account_workspace_id,group_id,sender_user_id,sender_agent_id,kind,content,metadata_json,source_event_id,request_payload_hash)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`, [messageId, group.account_workspace_id, groupId, req.auth.user.id, senderAgentId, kind, content,
         JSON.stringify(metadata), sourceEventId, payloadHash]);
+      await client.query(`INSERT INTO chat_group_message_receipts(message_id,group_id,recipient_user_id)
+        SELECT $1,$2,user_id FROM chat_group_members
+        WHERE group_id=$2 AND status='active' AND user_id<>$3
+        ON CONFLICT(message_id,recipient_user_id) DO NOTHING`, [messageId, groupId, req.auth.user.id]);
       await client.query('UPDATE chat_groups SET updated_at=now() WHERE id=$1', [groupId]);
       if (!senderAgentId) {
-        const mentionedUBuddyOwnerIds = [...new Set(normalizeMentionEntities(metadata.mentions, { content, requirePicker: true })
+        const normalizedMentions = normalizeMentionEntities(metadata.mentions, { content, requirePicker: true });
+        const audienceMentions = new Set(normalizedMentions.filter((mention) => mention.principalType === 'group_audience').map((mention) => mention.audience));
+        const activeMemberRows = await many(client, `SELECT user_id FROM chat_group_members
+          WHERE group_id=$1 AND status='active' AND user_id<>$2`, [groupId, req.auth.user.id]);
+        const mentionedUBuddyOwnerIds = [...new Set(normalizedMentions
           .filter((mention) => mention.principalType === 'ubuddy')
           .map((mention) => String(mention.ownerUserId || '').trim())
           .filter((userId) => userId && userId !== req.auth.user.id))];
+        if (audienceMentions.has('member_ubuddies')) mentionedUBuddyOwnerIds.push(...activeMemberRows.map((member) => member.user_id));
         if (mentionedUBuddyOwnerIds.length) {
           const mentionedOwners = new Set(mentionedUBuddyOwnerIds);
-          const activeMembers = (await many(client, `SELECT user_id FROM chat_group_members
-            WHERE group_id=$1 AND status='active'`, [groupId]))
+          const activeMembers = activeMemberRows
             .filter((member) => mentionedOwners.has(String(member.user_id || '')));
           await appendSocialRealtimeEvents(client, {
             accountWorkspaceId: group.account_workspace_id,
@@ -1365,9 +1655,47 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
             payload: { groupId, messageId, senderUserId: req.auth.user.id },
           });
         }
+        if (audienceMentions.has('human_members')) {
+          await appendSocialRealtimeEvents(client, {
+            accountWorkspaceId: group.account_workspace_id,
+            recipientUserIds: activeMemberRows.map((member) => member.user_id),
+            eventType: 'chat_group.everyone_mentioned', aggregateType: 'chat_group_message', aggregateId: messageId,
+            payload: { groupId, messageId, senderUserId: req.auth.user.id },
+          });
+        }
       }
     });
     res.status(201).json({ ok: true, ...(await naturalChatGroupDetail(pool, groupId, req.auth.user.id, workspace.id, { markRead: true, accountGlobal })) });
+  }));
+
+  app.post('/api/chat-groups/:groupId/read', auth, route(async (req, res) => {
+    const workspace = await requireAccountWorkspaceAccess(pool, req.auth.user.id, requestAccountWorkspaceId(req));
+    const groupId = String(req.params.groupId || '').trim();
+    const messageId = String(req.body?.readThroughMessageId || req.body?.messageId || '').trim();
+    const { group, membership } = await requireNaturalChatGroupMember(pool, groupId, req.auth.user.id, workspace.id,
+      { accountGlobal: naturalChatV2Requested(req) });
+    if (membership.status !== 'active') throw apiError('chat_group_readonly', '你已不在该群聊中。', 409);
+    const target = await one(pool, 'SELECT created_at FROM chat_group_messages WHERE id=$1 AND group_id=$2', [messageId, groupId]);
+    if (!target) throw apiError('message_not_found', '消息不存在。', 404);
+    const readAt = new Date().toISOString();
+    const senders = await inTransaction(pool, async (client) => {
+      const rows = await many(client, `SELECT DISTINCT message.sender_user_id FROM chat_group_message_receipts receipt
+        JOIN chat_group_messages message ON message.id=receipt.message_id
+        WHERE receipt.group_id=$1 AND receipt.recipient_user_id=$2 AND message.created_at<=$3 AND receipt.read_at IS NULL`,
+      [groupId, req.auth.user.id, target.created_at]);
+      await client.query(`UPDATE chat_group_message_receipts SET read_at=COALESCE(read_at,$4),updated_at=$4
+        WHERE group_id=$1 AND recipient_user_id=$2 AND read_at IS NULL AND message_id IN(
+          SELECT id FROM chat_group_messages WHERE group_id=$1 AND created_at<=$3
+        )`, [groupId, req.auth.user.id, target.created_at, readAt]);
+      await client.query('UPDATE chat_group_members SET last_read_at=$1 WHERE group_id=$2 AND user_id=$3', [readAt, groupId, req.auth.user.id]);
+      return [...new Set(rows.map((row) => row.sender_user_id).filter((id) => id && id !== req.auth.user.id))];
+    });
+    if (senders.length) await appendSocialRealtimeEvents(pool, {
+      accountWorkspaceId: group.account_workspace_id, recipientUserIds: senders,
+      eventType: 'chat_group.read_cursor_updated', aggregateType: 'chat_group', aggregateId: groupId,
+      payload: { groupId, readerUserId: req.auth.user.id, readThroughMessageId: messageId, readAt },
+    });
+    res.json({ ok: true, groupId, readThroughMessageId: messageId, readAt });
   }));
 
   app.patch('/api/chat-groups/:groupId', auth, route(async (req, res) => {
@@ -1381,7 +1709,8 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     const clientRequestId = String(req.body?.clientRequestId || '').trim().slice(0, 200) || newId('chat_group_action');
     const idempotencyKey = `chat-group:update:${groupId}:${clientRequestId}`;
     const payloadHash = stableRequestHash({ groupId, action, targetId, targetMessageId,
-      title: req.body?.title || '', displayName: req.body?.displayName || '', role: req.body?.role || '', actor: req.auth.user.id });
+      title: req.body?.title || '', displayName: req.body?.displayName || '', remark: req.body?.remark || '',
+      role: req.body?.role || '', emoji: req.body?.emoji || '', actor: req.auth.user.id });
     const prior = await one(pool, 'SELECT * FROM chat_group_operations WHERE idempotency_key=$1', [idempotencyKey]);
     if (prior) {
       if (prior.request_payload_hash !== payloadHash) throw apiError('chat_group_idempotency_conflict', '群聊操作幂等键已被不同请求占用。', 409);
@@ -1399,6 +1728,12 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
         const displayName = String(req.body?.displayName || req.body?.display_name || '').trim().slice(0, 80);
         await client.query(`UPDATE chat_group_members SET display_name_override=$1
           WHERE group_id=$2 AND user_id=$3 AND status='active'`, [displayName, groupId, req.auth.user.id]);
+      } else if (action === 'set_remark') {
+        const remark = String(req.body?.remark || '').trim().slice(0, 80);
+        const supported = await one(client, `SELECT 1 FROM information_schema.columns
+          WHERE table_schema=current_schema() AND table_name='chat_group_members' AND column_name='remark'`);
+        if (!supported) throw apiError('chat_group_remarks_server_update_required', '当前通信服务尚未完成群聊备注升级。', 503);
+        await client.query('UPDATE chat_group_members SET remark=$1 WHERE group_id=$2 AND user_id=$3', [remark, groupId, req.auth.user.id]);
       } else if (action === 'add_member') {
         if (!manager) throw apiError('chat_group_manager_required', '只有群主或管理员可以添加成员。', 403);
         if (accountGlobal) await requireContactChatPeer(client, workspace, req.auth.user.id, targetId);
@@ -1443,6 +1778,35 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
           JSON.stringify({ ...metadata, withdrawn: true, withdrawnAt: new Date().toISOString() }), targetMessageId, groupId,
         ]);
         await client.query('UPDATE chat_groups SET updated_at=now() WHERE id=$1', [groupId]);
+      } else if (action === 'toggle_reaction') {
+        const message = targetMessageId
+          ? await one(client, 'SELECT * FROM chat_group_messages WHERE id=$1 AND group_id=$2', [targetMessageId, groupId])
+          : null;
+        const metadata = publicSocialMessageMetadata(message?.metadata_json);
+        if (!message || message.kind !== 'friend' || String(message.sender_agent_id || '').trim()) {
+          throw apiError('chat_group_message_reaction_forbidden', '只能回应自然人群聊消息。', 403);
+        }
+        if (metadata.withdrawn === true) throw apiError('chat_group_message_reaction_withdrawn', '已撤回的消息不能添加表情。', 409);
+        const displayName = req.auth.user.displayName || req.auth.user.display_name || req.auth.user.username || req.auth.user.email || req.auth.user.id;
+        const nextMetadata = toggleMessageReaction(metadata, {
+          emoji: req.body?.emoji,
+          userId: req.auth.user.id,
+          displayName,
+          reactedAt: new Date().toISOString(),
+        });
+        await client.query('UPDATE chat_group_messages SET metadata_json=$1::jsonb,updated_at=now() WHERE id=$2 AND group_id=$3', [
+          JSON.stringify(nextMetadata), targetMessageId, groupId,
+        ]);
+        await client.query('UPDATE chat_groups SET updated_at=now() WHERE id=$1', [groupId]);
+        const activeMembers = await many(client, "SELECT user_id FROM chat_group_members WHERE group_id=$1 AND status='active'", [groupId]);
+        await appendSocialRealtimeEvents(client, {
+          accountWorkspaceId: group.account_workspace_id,
+          recipientUserIds: activeMembers.map((member) => member.user_id),
+          eventType: 'chat_group.reaction_updated',
+          aggregateType: 'chat_group_message',
+          aggregateId: targetMessageId,
+          payload: { groupId, messageId: targetMessageId, actorUserId: req.auth.user.id },
+        });
       } else {
         throw apiError('chat_group_action_invalid', '不支持的群聊操作。', 400);
       }
@@ -1627,6 +1991,153 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     res.status(201).json({ ok: true, message: await hydratedSocialMessage(pool, row.id) });
   }));
 
+  app.post('/api/social/call-signal', auth, route(async (req, res) => {
+    const senderId = req.auth.user.id;
+    const recipientId = String(req.body?.recipientId || '').trim();
+    const type = String(req.body?.type || '').trim();
+    const callId = String(req.body?.callId || '').trim();
+    if (!recipientId || !callId || !type) throw apiError('call_signal_invalid', '通话信令参数不完整。', 400);
+    const workspace = await requireAccountWorkspaceAccess(pool, senderId, req.body?.workspaceId || req.headers['x-janus-workspace-id']);
+    await requireContactChatPeer(pool, workspace, senderId, recipientId);
+    const allowed = new Set(['invite','accept','reject','cancel','offer','answer','ice-candidate','hangup']);
+    if (!allowed.has(type)) throw apiError('call_signal_type_invalid', '不支持的通话信令类型。', 400);
+    const sender = await getUserById(pool, senderId);
+    const senderProfile = sender ? userPayload(sender) : { id: senderId };
+    const callerName = String(senderProfile.displayName || senderProfile.username || senderProfile.email || senderId).trim();
+    await persistVoiceCallSignalState(pool, {
+      callId, type, senderId, recipientId, accountWorkspaceId: workspace.id,
+      senderProfile, callerName, payload: req.body || {},
+    });
+    await appendSocialRealtimeEvents(pool, { accountWorkspaceId: workspace.id, recipientUserIds: [recipientId], eventType: 'voice_call.signal', aggregateType: 'voice_call', aggregateId: callId, payload: { ...req.body, senderId, recipientId, type, callId, workspaceId: workspace.id, accountWorkspaceId: workspace.id, senderProfile, callerProfile: senderProfile, callerName } });
+    res.json({ ok: true, callId, type });
+  }));
+
+  app.post('/api/social/voice-call/record', auth, route(async (req, res) => {
+    const viewerId = req.auth.user.id;
+    const callId = String(req.body?.callId || '').trim().slice(0, 200);
+    const peerId = String(req.body?.peerId || '').trim();
+    const callerId = String(req.body?.callerId || viewerId).trim();
+    const groupId = String(req.body?.groupId || '').trim();
+    const status = ['ended', 'missed', 'rejected', 'cancelled', 'failed'].includes(String(req.body?.status || ''))
+      ? String(req.body.status) : 'ended';
+    if (!callId) throw apiError('voice_call_record_invalid', '通话记录缺少 callId。', 400);
+    await pool.query(`UPDATE voice_call_sessions SET status=$2,ended_at=COALESCE(ended_at,now()),last_activity_at=now(),updated_at=now(),version=version+1 WHERE id=$1`, [callId, status]);
+    const metadata = publicSocialMessageMetadata({
+      type: 'voice_call_record', callId, status,
+      direction: viewerId === callerId ? 'outgoing' : 'incoming',
+      callerId, durationSeconds: Math.max(0, Math.floor(Number(req.body?.durationSeconds) || 0)),
+      participantCount: Math.max(2, Math.floor(Number(req.body?.participantCount) || 2)),
+      startedAt: String(req.body?.startedAt || '').slice(0, 80),
+      answeredAt: String(req.body?.answeredAt || '').slice(0, 80),
+      endedAt: String(req.body?.endedAt || '').slice(0, 80),
+    });
+    const messageId = `voice-call-${callId}`;
+    if (groupId) {
+      const workspace = await requireAccountWorkspaceAccess(pool, viewerId, req.body?.workspaceId || req.headers['x-janus-workspace-id']);
+      const { group, membership } = await requireNaturalChatGroupMember(pool, groupId, viewerId, workspace.id, { accountGlobal: naturalChatV2Requested(req) });
+      if (membership.status !== 'active') throw apiError('voice_call_group_forbidden', '你已不在该群聊中。', 403);
+      const content = 'voice_call_record';
+      const existing = await one(pool, 'SELECT id FROM chat_group_messages WHERE id=$1 AND group_id=$2', [messageId, groupId]);
+      if (existing) {
+        await pool.query('UPDATE chat_group_messages SET content=$1,metadata_json=$2::jsonb,updated_at=now() WHERE id=$3 AND group_id=$4', [content, JSON.stringify(metadata), messageId, groupId]);
+      } else {
+        await pool.query(`INSERT INTO chat_group_messages(id,account_workspace_id,group_id,sender_user_id,kind,content,metadata_json,source_event_id,request_payload_hash)
+          VALUES($1,$2,$3,$4,'system',$5,$6::jsonb,$7,$8)`, [messageId, group.account_workspace_id, groupId, callerId === viewerId ? viewerId : callerId, content, JSON.stringify(metadata), callId, stableRequestHash({ messageId, metadata, groupId })]);
+      }
+      await pool.query('UPDATE chat_groups SET updated_at=now() WHERE id=$1', [groupId]);
+      return res.json({ ok: true, messageId, groupId, status });
+    }
+    if (!peerId) throw apiError('voice_call_record_invalid', '通话记录缺少联系人。', 400);
+    const workspace = await requireAccountWorkspaceAccess(pool, viewerId, req.body?.workspaceId || req.headers['x-janus-workspace-id']);
+    await requireContactChatPeer(pool, workspace, viewerId, peerId);
+    if (![callerId, peerId].includes(viewerId)) throw apiError('voice_call_record_forbidden', '无权写入该通话记录。', 403);
+    const recipientId = callerId === viewerId ? peerId : viewerId;
+    const existing = await one(pool, 'SELECT id FROM social_messages WHERE id=$1 AND account_workspace_id=$2', [messageId, workspace.id]);
+    if (existing) {
+      await pool.query('UPDATE social_messages SET content=$1,metadata_json=$2::jsonb,updated_at=now() WHERE id=$3', ['voice_call_record', JSON.stringify(metadata), messageId]);
+    } else {
+      await pool.query(`INSERT INTO social_messages(id,account_workspace_id,sender_user_id,recipient_user_id,kind,content,metadata_json)
+        VALUES($1,$2,$3,$4,'friend',$5,$6::jsonb)`, [messageId, workspace.id, callerId, recipientId, 'voice_call_record', JSON.stringify(metadata)]);
+    }
+    res.json({ ok: true, messageId, status });
+  }));
+
+  app.post('/api/social/voice-call/leave', auth, route(async (req, res) => {
+    const viewerId = req.auth.user.id;
+    const callId = String(req.body?.callId || '').trim();
+    const workspaceId = String(req.body?.workspaceId || req.headers['x-janus-workspace-id'] || '').trim();
+    if (!callId) throw apiError('voice_call_leave_invalid', '离开通话缺少 callId。', 400);
+    const session = await one(pool, 'SELECT * FROM voice_call_sessions WHERE id=$1', [callId]);
+    if (!session || (workspaceId && session.account_workspace_id !== workspaceId)) throw apiError('voice_call_not_found', '通话不存在或不属于当前工作区。', 404);
+    const participant = await one(pool, 'SELECT status FROM voice_call_participants WHERE call_id=$1 AND user_id=$2', [callId, viewerId]);
+    if (!participant) throw apiError('voice_call_leave_forbidden', '你不是该通话参与者。', 403);
+    const host = String(session.caller_user_id || '') === String(viewerId);
+    if (Boolean(req.body?.endRoom) && host) {
+      const remaining = await many(pool, "SELECT user_id FROM voice_call_participants WHERE call_id=$1 AND user_id<>$2 AND status IN ('joined','invited')", [callId, viewerId]);
+      await pool.query("UPDATE voice_call_sessions SET status='ended',ended_at=COALESCE(ended_at,now()),last_activity_at=now(),updated_at=now() WHERE id=$1", [callId]);
+      await pool.query("UPDATE voice_call_participants SET status='left',left_at=COALESCE(left_at,now()),updated_at=now() WHERE call_id=$1", [callId]);
+      await appendVoiceCallStateEvent(pool, { callId, eventType: 'end_room', actorUserId: viewerId });
+      await appendSocialRealtimeEvents(pool, { accountWorkspaceId: session.account_workspace_id, recipientUserIds: remaining.map((row) => row.user_id), eventType: 'voice_call.ended', aggregateType: 'voice_call', aggregateId: callId, payload: { type: 'voice_call.ended', callId, endedBy: viewerId } });
+      return res.json({ ok: true, callId, ended: true });
+    }
+    await pool.query("UPDATE voice_call_participants SET status='left',left_at=COALESCE(left_at,now()),updated_at=now() WHERE call_id=$1 AND user_id=$2", [callId, viewerId]);
+    await appendVoiceCallStateEvent(pool, { callId, eventType: 'leave', actorUserId: viewerId });
+    const remaining = await many(pool, "SELECT user_id FROM voice_call_participants WHERE call_id=$1 AND status IN ('joined','invited') AND user_id<>$2", [callId, viewerId]);
+    await appendSocialRealtimeEvents(pool, { accountWorkspaceId: session.account_workspace_id, recipientUserIds: remaining.map((row) => row.user_id), eventType: 'voice_call.participant_left', aggregateType: 'voice_call', aggregateId: callId, payload: { callId, userId: viewerId } });
+    res.json({ ok: true, callId, userId: viewerId });
+  }));
+
+  app.post('/api/social/voice-call/kick', auth, route(async (req, res) => {
+    const viewerId = req.auth.user.id;
+    const callId = String(req.body?.callId || '').trim();
+    const targetId = String(req.body?.userId || '').trim();
+    const session = await one(pool, 'SELECT * FROM voice_call_sessions WHERE id=$1', [callId]);
+    if (!session || VOICE_TERMINAL_STATUSES.has(String(session.status || ''))) throw apiError('voice_call_not_found', '多人通话不存在或已结束。', 404);
+    if (String(session.caller_user_id || '') !== String(viewerId)) throw apiError('voice_call_kick_forbidden', '只有主持人可以移除成员。', 403);
+    if (!targetId || targetId === viewerId) throw apiError('voice_call_kick_invalid', '请选择要移除的成员。', 400);
+    const target = await one(pool, "SELECT 1 FROM voice_call_participants WHERE call_id=$1 AND user_id=$2 AND status='joined'", [callId, targetId]);
+    if (!target) throw apiError('voice_call_kick_invalid', '该用户不是当前通话成员。', 400);
+    await pool.query("UPDATE voice_call_participants SET status='kicked',left_at=COALESCE(left_at,now()),updated_at=now() WHERE call_id=$1 AND user_id=$2", [callId, targetId]);
+    await appendVoiceCallStateEvent(pool, { callId, eventType: 'kick', actorUserId: viewerId, payload: { userId: targetId } });
+    await appendSocialRealtimeEvents(pool, { accountWorkspaceId: session.account_workspace_id, recipientUserIds: [targetId], eventType: 'voice_call.participant_left', aggregateType: 'voice_call', aggregateId: callId, payload: { type: 'voice_call.participant_left', callId, userId: targetId, kicked: true } });
+    res.json({ ok: true, callId, userId: targetId });
+  }));
+
+  app.post('/api/social/voice-call/chat', auth, route(async (req, res) => {
+    const viewerId = req.auth.user.id;
+    const callId = String(req.body?.callId || '').trim();
+    const text = String(req.body?.text || '').trim().slice(0, 2000);
+    if (!callId || !text) throw apiError('voice_call_chat_invalid', '通话消息不能为空。', 400);
+    const session = await one(pool, 'SELECT * FROM voice_call_sessions WHERE id=$1', [callId]);
+    if (!session || VOICE_TERMINAL_STATUSES.has(String(session.status || ''))) throw apiError('voice_call_not_found', '通话不存在或已结束。', 404);
+    const participant = await one(pool, "SELECT status FROM voice_call_participants WHERE call_id=$1 AND user_id=$2 AND status='joined'", [callId, viewerId]);
+    if (!participant) throw apiError('voice_call_chat_forbidden', '只有当前通话参与者可以发言。', 403);
+    const messageId = String(req.body?.messageId || '').trim() || newId('voice_chat');
+    const eventPayload = { type: 'voice_call.chat', callId, messageId, senderId: viewerId, text, sentAt: new Date().toISOString() };
+    await appendVoiceCallStateEvent(pool, { callId, eventType: 'chat', actorUserId: viewerId, payload: { messageId, text } });
+    const recipients = await many(pool, "SELECT user_id FROM voice_call_participants WHERE call_id=$1 AND status='joined'", [callId]);
+    await appendSocialRealtimeEvents(pool, { accountWorkspaceId: session.account_workspace_id, recipientUserIds: recipients.map((row) => row.user_id), eventType: 'voice_call.chat', aggregateType: 'voice_call', aggregateId: callId, payload: eventPayload });
+    res.json({ ok: true, message: eventPayload });
+  }));
+
+  app.post('/api/social/voice-call/invite', auth, route(async (req, res) => {
+    const actorId = req.auth.user.id;
+    const callId = String(req.body?.callId || '').trim();
+    const recipientId = String(req.body?.recipientId || '').trim();
+    const workspaceId = String(req.body?.workspaceId || req.headers['x-janus-workspace-id'] || '').trim();
+    if (!callId || !recipientId) throw apiError('voice_call_invite_invalid', '邀请通话成员参数不完整。', 400);
+    const session = await one(pool, 'SELECT * FROM voice_call_sessions WHERE id=$1', [callId]);
+    if (!session || session.kind !== 'group' || (workspaceId && session.account_workspace_id !== workspaceId)) throw apiError('voice_call_not_found', '多人通话不存在。', 404);
+    const host = await one(pool, "SELECT 1 FROM voice_call_participants WHERE call_id=$1 AND user_id=$2 AND role='host' AND status='joined'", [callId, actorId]);
+    if (!host) throw apiError('voice_call_invite_forbidden', '只有主持人可以邀请成员。', 403);
+    const target = await one(pool, "SELECT 1 FROM chat_group_members WHERE group_id=$1 AND user_id=$2 AND status='active'", [session.group_id, recipientId]);
+    if (!target) throw apiError('voice_call_invite_forbidden', '只能邀请当前群聊成员。', 403);
+    await pool.query("INSERT INTO voice_call_participants(call_id,user_id,role,status) VALUES($1,$2,'member','invited') ON CONFLICT(call_id,user_id) DO UPDATE SET status='invited',left_at=NULL,updated_at=now()", [callId, recipientId]);
+    await appendVoiceCallStateEvent(pool, { callId, eventType: 'invite', actorUserId: actorId, payload: { recipientId } });
+    await appendSocialRealtimeEvents(pool, { accountWorkspaceId: session.account_workspace_id, recipientUserIds: [recipientId], eventType: 'voice_call.invite', aggregateType: 'voice_call', aggregateId: callId, payload: { callId, groupId: session.group_id, recipientId, inviterId: actorId } });
+    res.json({ ok: true, callId, recipientId });
+  }));
+
   app.patch('/api/social/messages/:messageId', auth, route(async (req, res) => {
     const messageId = String(req.params.messageId || '');
     const current = await one(pool, 'SELECT * FROM social_messages WHERE id = $1 AND sender_user_id = $2', [messageId, req.auth.user.id]);
@@ -1640,8 +2151,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     const directPersonMessage = currentMetadata.type === 'direct_message'
       && current.kind === 'friend'
       && !String(current.sender_agent_id || '').trim()
-      && !String(current.recipient_agent_id || '').trim()
-      && current.sender_user_id !== current.recipient_user_id;
+      && !String(current.recipient_agent_id || '').trim();
     const delegationComment = currentMetadata.type === 'agent_delegation_comment';
     if (!delegationComment && !(withdraw && directPersonMessage)) {
       throw apiError('message_update_forbidden', withdraw ? '只能撤回自己发送的自然人私聊消息。' : '\u53ea\u80fd\u4fee\u6539\u59d4\u6258\u7684\u8865\u5145\u6d88\u606f\u3002', 403);
@@ -1668,6 +2178,38 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     res.json({ ok: true, message: await hydratedSocialMessage(pool, messageId) });
   }));
 
+  app.post('/api/social/messages/:messageId/reactions', auth, route(async (req, res) => {
+    const messageId = String(req.params.messageId || '').trim();
+    const current = await one(pool, 'SELECT * FROM social_messages WHERE id=$1 AND (sender_user_id=$2 OR recipient_user_id=$2)', [messageId, req.auth.user.id]);
+    if (!current) throw apiError('message_not_found', '消息不存在或无权回应。', 404);
+    const workspace = await requireAccountWorkspaceAccess(pool, req.auth.user.id, requestAccountWorkspaceId(req));
+    if (current.account_workspace_id !== workspace.id) throw apiError('message_not_found', '消息不存在或无权回应。', 404);
+    const metadata = publicSocialMessageMetadata(current.metadata_json);
+    const directPersonMessage = ['', 'direct_message'].includes(String(metadata.type || ''))
+      && current.kind === 'friend'
+      && !String(current.sender_agent_id || '').trim()
+      && !String(current.recipient_agent_id || '').trim();
+    if (!directPersonMessage) throw apiError('message_reaction_forbidden', '只能回应普通私聊消息。', 403);
+    if (metadata.withdrawn === true) throw apiError('message_reaction_withdrawn', '已撤回的消息不能添加表情。', 409);
+    const displayName = req.auth.user.displayName || req.auth.user.display_name || req.auth.user.username || req.auth.user.email || req.auth.user.id;
+    const nextMetadata = toggleMessageReaction(metadata, {
+      emoji: req.body?.emoji,
+      userId: req.auth.user.id,
+      displayName,
+      reactedAt: new Date().toISOString(),
+    });
+    await pool.query('UPDATE social_messages SET metadata_json=$1::jsonb,updated_at=now() WHERE id=$2', [JSON.stringify(nextMetadata), messageId]);
+    await appendSocialRealtimeEvents(pool, {
+      accountWorkspaceId: current.account_workspace_id,
+      recipientUserIds: [current.sender_user_id, current.recipient_user_id],
+      eventType: 'social_message.reaction_updated',
+      aggregateType: 'social_message',
+      aggregateId: messageId,
+      payload: { messageId, actorUserId: req.auth.user.id },
+    });
+    res.json({ ok: true, message: await hydratedSocialMessage(pool, messageId) });
+  }));
+
   app.post('/api/social/messages/:messageId/read', auth, route(async (req, res) => {
     const current = await one(pool, 'SELECT account_workspace_id FROM social_messages WHERE id=$1 AND recipient_user_id=$2', [String(req.params.messageId || ''), req.auth.user.id]);
     if (!current) throw apiError('message_not_found', '消息不存在。', 404);
@@ -1682,6 +2224,11 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       [String(req.params.messageId || ''), req.auth.user.id],
     );
     if (!row) throw apiError('message_not_found', '消息不存在。', 404);
+    await appendSocialRealtimeEvents(pool, {
+      accountWorkspaceId: row.account_workspace_id, recipientUserIds: [row.sender_user_id],
+      eventType: 'social_message.read', aggregateType: 'social_message', aggregateId: row.id,
+      payload: { messageId: row.id, readerUserId: req.auth.user.id, readAt: toIso(row.read_at) },
+    });
     res.json({ ok: true, message: await hydratedSocialMessage(pool, row.id) });
   }));
 
@@ -1849,11 +2396,29 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     const requesterId = req.auth.user.id;
     const recipientId = String(req.body.recipientId || req.body.userId || '').trim();
     const workspace = await requireAccountWorkspaceAccess(pool, requesterId, requestAccountWorkspaceId(req));
-    await requireWorkspaceMessagingPeer(pool, workspace, requesterId, recipientId);
+    const delegationMetadata = jsonObject(req.body.metadata);
+    const organizationAudienceSnapshot = delegationMetadata.organizationAudienceSnapshot
+      && typeof delegationMetadata.organizationAudienceSnapshot === 'object'
+      ? jsonObject(delegationMetadata.organizationAudienceSnapshot)
+      : null;
+    const organizationAudienceRecipientIds = await verifiedOrganizationAudienceRecipientIds(
+      pool,
+      workspace,
+      requesterId,
+      organizationAudienceSnapshot,
+    );
+    await requireCollaborationAssignmentPeer(
+      pool,
+      workspace,
+      requesterId,
+      recipientId,
+      organizationAudienceRecipientIds,
+    );
+    const presenceGated = req.body?.presenceGate === 'online_only';
+    if (presenceGated) requireRecipientPresenceCapability(req);
     const instruction = String(req.body.instruction || '').trim();
     if (!instruction) throw apiError('delegation_instruction_required', '请输入委托任务内容。', 400);
     const title = String(req.body.title || instruction.slice(0, 48) || 'Buddy agent 委托').slice(0, 160);
-    const delegationMetadata = jsonObject(req.body.metadata);
     const clientRequestId = String(req.body.clientRequestId || delegationMetadata.dispatchCommandId || '').trim().slice(0, 240);
     if (clientRequestId) {
       const existing = await one(pool, `SELECT * FROM agent_delegations
@@ -1865,7 +2430,9 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
         return res.json({ ok: true, idempotent: true, delegation: await hydratedDelegation(pool, existing.id, requesterId), message: null });
       }
     }
+    if (presenceGated) await requireRecipientOnline(pool, recipientId);
     const result = await inTransaction(pool, async (client) => {
+      if (presenceGated) await requireRecipientOnline(client, recipientId);
       const id = newId('agent_delegate');
       const inserted = await client.query(
         `INSERT INTO agent_delegations (
@@ -2120,6 +2687,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     if (existing) return res.json({ ok: true, ...(await collaborationGroupDetail(pool, existing.id, ownerId, { accountWorkspaceId: workspace.id })), idempotent: true });
     const assignments = (Array.isArray(req.body?.assignments) ? req.body.assignments : [])
       .map((item) => ({
+        assignmentId: String(item.assignmentId || item.metadata?.assignmentId || '').trim().slice(0, 120),
         recipientId: String(item.recipientId || item.userId || '').trim(),
         title: String(item.title || req.body?.title || 'uBuddy 委托任务').trim().slice(0, 160),
         instruction: String(item.instruction || '').trim().slice(0, 16000),
@@ -2129,17 +2697,68 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     if (new Set(assignments.map((item) => item.recipientId)).size !== assignments.length) {
       throw apiError('collaboration_assignment_duplicate_recipient', '同一参与人只能对应一项远程分工；请将多个工作项合并到同一分工中。', 400);
     }
-    if (!assignments.length) throw apiError('collaboration_assignments_required', '请至少选择一位好友并填写任务内容。', 400);
-    for (const recipientId of [...new Set(assignments.map((item) => item.recipientId))]) {
-      await requireWorkspaceMessagingPeer(pool, workspace, ownerId, recipientId);
+    const metadata = jsonObject(req.body?.metadata);
+    const plannedRecipientIds = [...new Set((Array.isArray(req.body?.plannedRecipientIds)
+      ? req.body.plannedRecipientIds
+      : Array.isArray(metadata.plannedRecipientIds) ? metadata.plannedRecipientIds : [])
+      .map((item) => String(item || '').trim()).filter((item) => item && item !== ownerId))].slice(0, 100);
+    if (!assignments.length && !plannedRecipientIds.length) {
+      throw apiError('collaboration_assignments_required', '请至少选择一位好友并填写任务内容。', 400);
+    }
+    const organizationAudienceSnapshot = metadata.organizationAudienceSnapshot
+      && typeof metadata.organizationAudienceSnapshot === 'object'
+      ? jsonObject(metadata.organizationAudienceSnapshot)
+      : null;
+    const organizationAudienceRecipientIds = await verifiedOrganizationAudienceRecipientIds(
+      pool,
+      workspace,
+      ownerId,
+      organizationAudienceSnapshot,
+    );
+    const presenceGated = req.body?.presenceGate === 'online_only';
+    if (presenceGated) requireRecipientPresenceCapability(req);
+    const assignmentRecipientIds = [...new Set(assignments.map((item) => item.recipientId))];
+    const plannedRecipientSet = new Set(plannedRecipientIds.length ? plannedRecipientIds : assignmentRecipientIds);
+    if (assignmentRecipientIds.some((recipientId) => !plannedRecipientSet.has(recipientId))) {
+      throw apiError('collaboration_planned_recipient_mismatch', '实际分工成员必须包含在计划参与人中。', 400);
+    }
+    const allRecipientIds = [...plannedRecipientSet];
+    for (const recipientId of allRecipientIds) {
+      await requireCollaborationAssignmentPeer(
+        pool,
+        workspace,
+        ownerId,
+        recipientId,
+        organizationAudienceRecipientIds,
+      );
+      if (presenceGated && assignmentRecipientIds.includes(recipientId)) await requireRecipientOnline(pool, recipientId);
     }
     const groupId = newId('collab_group');
     try {
       await inTransaction(pool, async (client) => {
+        for (const recipientId of assignmentRecipientIds) {
+          if (presenceGated) await requireRecipientOnline(client, recipientId);
+        }
+        const automaticSummary = automaticTaskGroupTitleSummary(metadata);
+        const participantRows = automaticSummary
+          ? (await Promise.all([ownerId, ...allRecipientIds].map((userId) => (
+            one(client, 'SELECT id,email,display_name,username FROM users WHERE id=$1', [userId])
+          )))).filter(Boolean)
+          : [];
+        const participantById = new Map(participantRows.map((participant) => [participant.id, participant]));
+        const storedTitle = automaticSummary
+          ? buildTaskGroupTitle({
+            objective: automaticSummary,
+            participants: [ownerId, ...allRecipientIds].map((userId) => participantById.get(userId) || { id: userId }),
+          })
+          : String(req.body?.title || 'uBuddy 任务群').trim().slice(0, 80) || 'uBuddy 任务群';
         await client.query(
           `INSERT INTO collaboration_groups (id, account_workspace_id, owner_user_id, title, client_request_id, metadata_json)
            VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-          [groupId, workspace.id, ownerId, String(req.body?.title || 'uBuddy 任务群').trim().slice(0, 80) || 'uBuddy 任务群', clientRequestId, JSON.stringify(jsonObject(req.body?.metadata))],
+          [groupId, workspace.id, ownerId, storedTitle, clientRequestId, JSON.stringify({
+            ...metadata,
+            plannedRecipientIds: allRecipientIds,
+          })],
         );
         await client.query(
           `INSERT INTO collaboration_group_workspaces (group_id, workspace_epoch, revision, status)
@@ -2150,20 +2769,25 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
         for (const recipientId of [...new Set(assignments.map((item) => item.recipientId))]) {
           await client.query(`INSERT INTO collaboration_group_members (group_id, user_id, role) VALUES ($1, $2, 'member')`, [groupId, recipientId]);
         }
+        const createdMessage = assignments.length
+          ? 'uBuddy 已创建任务群并发布任务。'
+          : 'uBuddy 已创建任务群，正在等待成员上线后发布任务。';
         await client.query(
           `INSERT INTO collaboration_group_messages (id, account_workspace_id, group_id, sender_user_id, sender_agent_id, kind, content, metadata_json)
            VALUES ($1, $2, $3, $4, 'secretary_agent', 'system', $5, $6::jsonb)`,
-          [newId('group_msg'), workspace.id, groupId, ownerId, 'uBuddy 已创建任务群并发布任务。', JSON.stringify({ type: 'group_created' })],
+          [newId('group_msg'), workspace.id, groupId, ownerId, createdMessage, JSON.stringify({ type: 'group_created' })],
         );
         for (const assignment of assignments) {
           const delegationId = newId('agent_delegate');
           const metadata = { ...jsonObject(req.body?.metadata), ...assignment.metadata, groupId, source: 'collaboration_group', initiatedThroughOwnUBuddy: true };
           await client.query(
             `INSERT INTO agent_delegations (
-               id, account_workspace_id, requester_user_id, recipient_user_id, sender_agent_id, recipient_agent_id,
+               id, account_workspace_id, requester_user_id, recipient_user_id, client_request_id, sender_agent_id, recipient_agent_id,
                title, instruction, status, group_id, metadata_json
-             ) VALUES ($1, $2, $3, $4, 'secretary_agent', 'secretary_agent', $5, $6, 'assigned', $7, $8::jsonb)`,
-            [delegationId, workspace.id, ownerId, assignment.recipientId, assignment.title, assignment.instruction, groupId, JSON.stringify(publicDelegationMetadata(metadata))],
+             ) VALUES ($1, $2, $3, $4, $5, 'secretary_agent', 'secretary_agent', $6, $7, 'assigned', $8, $9::jsonb)`,
+            [delegationId, workspace.id, ownerId, assignment.recipientId,
+              assignment.assignmentId ? `${clientRequestId}:${assignment.assignmentId}`.slice(0, 240) : '',
+              assignment.title, assignment.instruction, groupId, JSON.stringify(publicDelegationMetadata(metadata))],
           );
           const requesterPrivateMetadata = privateDelegationMetadata(metadata);
           await client.query(
@@ -2363,34 +2987,114 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     if (action === 'set_display_name' && membership.status !== 'active') throw apiError('collaboration_group_closed', '任务群已结束，不能修改群内显示名。', 409);
     if (action !== 'set_display_name' && group.owner_user_id !== req.auth.user.id) throw apiError('collaboration_owner_required', '只有任务群发起人可以执行此操作。', 403);
     if (group.status === 'closed' && action !== 'close') throw apiError('collaboration_group_closed', '任务群已解散，不能继续修改。', 409);
-    if (group.status === 'closed' && action === 'close') return res.json({ ok: true, ...(await collaborationGroupDetail(pool, groupId, req.auth.user.id, { accountWorkspaceId: workspace.id })), idempotent: true });
+    if (group.status === 'closed' && action === 'close') return res.json({
+      ok: true,
+      ...(await collaborationGroupDetail(pool, groupId, req.auth.user.id, { accountWorkspaceId: workspace.id })),
+      terminationSummary: { withdrawnCount: 0, preservedCount: 0, withdrawnDelegationIds: [] },
+      idempotent: true,
+    });
     if (action === 'set_display_name') {
       await pool.query(`UPDATE collaboration_group_members SET display_name_override=$1
         WHERE group_id=$2 AND user_id=$3 AND status='active'`, [String(req.body?.displayName || req.body?.display_name || '').trim().slice(0, 80), groupId, req.auth.user.id]);
     } else if (action === 'close') {
+      let terminationSummary = { withdrawnCount: 0, preservedCount: 0, withdrawnDelegationIds: [] };
       await inTransaction(pool, async (client) => {
+        const tasks = await many(client, 'SELECT * FROM agent_delegations WHERE group_id=$1 FOR UPDATE', [groupId]);
+        const withdrawnDelegationIds = [];
+        for (const task of tasks) {
+          if (!delegationTransitionAllowed(task.status, 'withdraw')) continue;
+          const metadata = publicDelegationMetadata({
+            ...jsonObject(task.metadata_json),
+            withdrawnFromStatus: task.status,
+            withdrawnAt: new Date().toISOString(),
+            withdrawnReason: 'group_closed_by_owner',
+          });
+          await client.query(`UPDATE agent_delegations SET status='withdrawn',metadata_json=$1::jsonb,
+            completed_at=COALESCE(completed_at,now()),updated_at=now() WHERE id=$2`, [JSON.stringify(metadata), task.id]);
+          const revisionRow = await one(client, 'SELECT COALESCE(MAX(revision_no),0) AS revision_no FROM agent_delegation_revisions WHERE delegation_id=$1', [task.id]);
+          const revisionNo = Number(revisionRow?.revision_no || 0) + 1;
+          await client.query(`INSERT INTO agent_delegation_revisions
+            (id,delegation_id,author_user_id,revision_no,action,content,metadata_json)
+            VALUES($1,$2,$3,$4,'withdraw',$5,$6::jsonb)`, [
+            newId('task_revision'), task.id, req.auth.user.id, revisionNo,
+            '发起人结束工作群，未完成任务已撤回。', JSON.stringify({ reason: 'group_closed_by_owner', previousStatus: task.status }),
+          ]);
+          await appendDelegationRealtimeEvents(client, {
+            delegationId: task.id,
+            accountWorkspaceId: workspace.id,
+            recipientUserIds: [task.requester_user_id, task.recipient_user_id],
+            eventType: 'delegation.withdraw',
+            aggregateVersion: revisionNo,
+            payload: { action: 'withdraw', status: 'withdrawn', revisionNo, reason: 'group_closed_by_owner' },
+          });
+          withdrawnDelegationIds.push(task.id);
+        }
         await client.query("UPDATE collaboration_groups SET status = 'closed', closed_at = now(), updated_at = now() WHERE id = $1", [groupId]);
         await client.query("UPDATE collaboration_group_workspaces SET status = 'closed', updated_at = now() WHERE group_id = $1", [groupId]);
-        await client.query("UPDATE agent_delegations SET status = 'closed', completed_at = now(), updated_at = now() WHERE group_id = $1", [groupId]);
         await client.query("UPDATE collaboration_group_members SET status = 'closed', left_at = COALESCE(left_at, now()) WHERE group_id = $1 AND status = 'active'", [groupId]);
         await client.query(
           `INSERT INTO collaboration_group_messages (id, account_workspace_id, group_id, sender_user_id, kind, content, metadata_json)
            VALUES ($1, $2, $3, $4, 'system', $5, $6::jsonb)`,
-          [newId('group_msg'), workspace.id, groupId, req.auth.user.id, '发起人已解散任务群，协作正式结束。', JSON.stringify({ type: 'group_closed' })],
+          [newId('group_msg'), workspace.id, groupId, req.auth.user.id, '发起人已停止未完成任务并结束工作群。', JSON.stringify({ type: 'group_closed', withdrawnDelegationIds })],
         );
+        terminationSummary = {
+          withdrawnCount: withdrawnDelegationIds.length,
+          preservedCount: tasks.length - withdrawnDelegationIds.length,
+          withdrawnDelegationIds,
+        };
+      });
+      return res.json({
+        ok: true,
+        ...(await collaborationGroupDetail(pool, groupId, req.auth.user.id, { accountWorkspaceId: workspace.id })),
+        terminationSummary,
       });
     } else if (action === 'rename') {
-      await pool.query('UPDATE collaboration_groups SET title = $1, updated_at = now() WHERE id = $2', [String(req.body?.title || group.title).trim().slice(0, 80), groupId]);
+      await pool.query('UPDATE collaboration_groups SET title=$1,metadata_json=$2::jsonb,updated_at=now() WHERE id=$3', [
+        String(req.body?.title || group.title).trim().slice(0, 80),
+        JSON.stringify(manualTaskGroupTitleMetadata(jsonObject(group.metadata_json))), groupId,
+      ]);
     } else if (action === 'add_member') {
       const targetId = String(req.body?.userId || '').trim();
-      await requireWorkspaceMessagingPeer(pool, workspace, req.auth.user.id, targetId);
+      const groupMetadata = jsonObject(group.metadata_json);
+      const organizationAudienceSnapshot = groupMetadata.organizationAudienceSnapshot
+        && typeof groupMetadata.organizationAudienceSnapshot === 'object'
+        ? jsonObject(groupMetadata.organizationAudienceSnapshot)
+        : null;
+      const organizationAudienceRecipientIds = await verifiedOrganizationAudienceRecipientIds(
+        pool,
+        workspace,
+        req.auth.user.id,
+        organizationAudienceSnapshot,
+      );
+      await requireCollaborationAssignmentPeer(
+        pool,
+        workspace,
+        req.auth.user.id,
+        targetId,
+        organizationAudienceRecipientIds,
+      );
       const assignment = jsonObject(req.body?.assignment);
+      const assignmentClientRequestId = String(assignment.clientRequestId || assignment.assignmentId || '').trim().slice(0, 240);
       const instruction = String(assignment.instruction || '').trim().slice(0, 16000);
       if (!instruction) throw apiError('collaboration_assignment_required', '添加成员时必须同时分配具体任务。', 400);
+      const presenceGated = req.body?.presenceGate === 'online_only';
+      if (presenceGated) requireRecipientPresenceCapability(req);
+      if (assignmentClientRequestId) {
+        const replay = await one(pool, `SELECT id,group_id,recipient_user_id,instruction FROM agent_delegations
+          WHERE account_workspace_id=$1 AND requester_user_id=$2 AND client_request_id=$3`, [workspace.id, req.auth.user.id, assignmentClientRequestId]);
+        if (replay) {
+          if (replay.group_id !== groupId || replay.recipient_user_id !== targetId || replay.instruction !== instruction) {
+            throw apiError('delegation_idempotency_conflict', '成员分工幂等键已被不同请求占用。', 409);
+          }
+          return res.json({ ok: true, ...(await collaborationGroupDetail(pool, groupId, req.auth.user.id, { accountWorkspaceId: workspace.id })), idempotent: true });
+        }
+      }
+      if (presenceGated) await requireRecipientOnline(pool, targetId);
       if (await activeCollaborationMembership(pool, groupId, targetId)) throw apiError('collaboration_member_exists', '该用户已经在任务群中。', 409);
       await inTransaction(pool, async (client) => {
-        const lockedGroup = await one(client, 'SELECT * FROM collaboration_groups WHERE id = $1', [groupId]);
+        const lockedGroup = await one(client, 'SELECT * FROM collaboration_groups WHERE id = $1 FOR UPDATE', [groupId]);
         if (lockedGroup?.status === 'closed') throw apiError('collaboration_group_closed', '任务群已解散，不能继续修改。', 409);
+        if (presenceGated) await requireRecipientOnline(client, targetId);
         await client.query(
           `INSERT INTO collaboration_group_members (group_id, user_id, role, status, joined_at, left_at)
            VALUES ($1, $2, 'member', 'active', now(), NULL)
@@ -2398,13 +3102,22 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
           [groupId, targetId],
         );
         const delegationId = newId('agent_delegate');
-        const assignmentMetadata = { ...jsonObject(assignment.metadata), groupId, source: 'collaboration_group', initiatedThroughOwnUBuddy: true };
+        const sharedTaskSummary = normalizePublicTaskSummary(jsonObject(lockedGroup.metadata_json).taskSummary);
+        const assignmentMetadata = {
+          ...jsonObject(assignment.metadata),
+          ...(sharedTaskSummary ? { taskSummary: sharedTaskSummary } : {}),
+          groupId,
+          source: 'collaboration_group',
+          initiatedThroughOwnUBuddy: true,
+        };
         await client.query(
           `INSERT INTO agent_delegations (
-             id, account_workspace_id, requester_user_id, recipient_user_id, sender_agent_id, recipient_agent_id,
+             id, account_workspace_id, requester_user_id, recipient_user_id, client_request_id, sender_agent_id, recipient_agent_id,
              title, instruction, status, group_id, metadata_json
-           ) VALUES ($1, $2, $3, $4, 'secretary_agent', 'secretary_agent', $5, $6, 'assigned', $7, $8::jsonb)`,
-          [delegationId, workspace.id, req.auth.user.id, targetId, String(assignment.title || `${group.title} · 新任务`).trim().slice(0, 160), instruction, groupId, JSON.stringify(publicDelegationMetadata(assignmentMetadata))],
+           ) VALUES ($1, $2, $3, $4, $5, 'secretary_agent', 'secretary_agent', $6, $7, 'assigned', $8, $9::jsonb)`,
+          [delegationId, workspace.id, req.auth.user.id, targetId, assignmentClientRequestId,
+            String(assignment.title || `${group.title} · 新任务`).trim().slice(0, 160), instruction, groupId,
+            JSON.stringify(publicDelegationMetadata(assignmentMetadata))],
         );
         const recipientPrivateMetadata = privateDelegationMetadata(assignmentMetadata);
         await client.query(
@@ -2429,6 +3142,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
           aggregateVersion: 1,
           payload: { status: 'assigned', groupId, requesterUserId: req.auth.user.id, recipientUserId: targetId },
         });
+        await refreshAutomaticCollaborationGroupTitle(client, groupId);
         await client.query('UPDATE collaboration_groups SET updated_at = now() WHERE id = $1', [groupId]);
       });
     } else if (action === 'remove_member') {
@@ -2437,13 +3151,44 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       const activeMember = await activeCollaborationMembership(pool, groupId, targetId);
       if (!activeMember) throw apiError('collaboration_member_not_found', '该用户不是当前任务群成员。', 404);
       await inTransaction(pool, async (client) => {
+        const tasks = await many(client, `SELECT id,status,requester_user_id,recipient_user_id,metadata_json
+          FROM agent_delegations WHERE group_id=$1 AND recipient_user_id=$2 FOR UPDATE`, [groupId, targetId]);
+        const withdrawnDelegationIds = [];
         await client.query("UPDATE collaboration_group_members SET status = 'removed', left_at = now() WHERE group_id = $1 AND user_id = $2 AND status = 'active'", [groupId, targetId]);
-        await client.query("UPDATE agent_delegations SET status = 'withdrawn', updated_at = now() WHERE group_id = $1 AND recipient_user_id = $2 AND status <> 'closed'", [groupId, targetId]);
+        for (const task of tasks) {
+          if (!delegationTransitionAllowed(task.status, 'withdraw')) continue;
+          const metadata = publicDelegationMetadata({
+            ...jsonObject(task.metadata_json),
+            withdrawnFromStatus: task.status,
+            withdrawnAt: new Date().toISOString(),
+            withdrawnReason: 'member_removed_by_owner',
+          });
+          await client.query(`UPDATE agent_delegations SET status='withdrawn',metadata_json=$1::jsonb,
+            completed_at=COALESCE(completed_at,now()),updated_at=now() WHERE id=$2`, [JSON.stringify(metadata), task.id]);
+          const revisionRow = await one(client, 'SELECT COALESCE(MAX(revision_no),0) AS revision_no FROM agent_delegation_revisions WHERE delegation_id=$1', [task.id]);
+          const revisionNo = Number(revisionRow?.revision_no || 0) + 1;
+          await client.query(`INSERT INTO agent_delegation_revisions
+            (id,delegation_id,author_user_id,revision_no,action,content,metadata_json)
+            VALUES($1,$2,$3,$4,'withdraw',$5,$6::jsonb)`, [
+            newId('task_revision'), task.id, req.auth.user.id, revisionNo,
+            '发起人移除群成员，未完成任务已撤回。', JSON.stringify({ reason: 'member_removed_by_owner', previousStatus: task.status }),
+          ]);
+          await appendDelegationRealtimeEvents(client, {
+            delegationId: task.id,
+            accountWorkspaceId: workspace.id,
+            recipientUserIds: [task.requester_user_id, task.recipient_user_id],
+            eventType: 'delegation.withdraw',
+            aggregateVersion: revisionNo,
+            payload: { action: 'withdraw', status: 'withdrawn', revisionNo, reason: 'member_removed_by_owner' },
+          });
+          withdrawnDelegationIds.push(task.id);
+        }
         await client.query(
           `INSERT INTO collaboration_group_messages (id, account_workspace_id, group_id, sender_user_id, kind, content, metadata_json)
            VALUES ($1, $2, $3, $4, 'system', $5, $6::jsonb)`,
-          [newId('group_msg'), workspace.id, groupId, req.auth.user.id, '发起人移除了一位群成员，其未完成任务已撤回。', JSON.stringify({ type: 'member_removed', userId: targetId })],
+          [newId('group_msg'), workspace.id, groupId, req.auth.user.id, '发起人移除了一位群成员，其未完成任务已撤回。', JSON.stringify({ type: 'member_removed', userId: targetId, withdrawnDelegationIds })],
         );
+        await refreshAutomaticCollaborationGroupTitle(client, groupId);
       });
     } else {
       throw apiError('collaboration_action_invalid', '不支持的任务群操作。', 400);
@@ -2454,15 +3199,28 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
 
   app.post('/api/collaboration/tasks/:delegationId/action', auth, route(async (req, res) => {
     const delegationId = String(req.params.delegationId || '');
-    const workspace = await requireAccountWorkspaceAccess(pool, req.auth.user.id, requestAccountWorkspaceId(req));
-    const delegation = await requireDelegationParticipant(pool, delegationId, req.auth.user.id, workspace.id);
-    const group = delegation.group_id ? await one(pool, 'SELECT * FROM collaboration_groups WHERE id=$1 AND account_workspace_id=$2', [delegation.group_id, workspace.id]) : null;
-    if (group?.status === 'closed') throw apiError('collaboration_group_closed', '任务群已结束。', 409);
-    if (delegation.group_id) await requireActiveTaskMembership(pool, delegation.group_id, req.auth.user.id, { accountWorkspaceId: workspace.id });
     const action = String(req.body?.action || '').toLowerCase();
+    const workspace = await requireAccountWorkspaceAccess(pool, req.auth.user.id, requestAccountWorkspaceId(req));
+    let delegation = action === 'withdraw'
+      ? await one(pool, 'SELECT * FROM agent_delegations WHERE id=$1 AND account_workspace_id=$2', [delegationId, workspace.id])
+      : null;
+    let group = delegation?.group_id ? await one(pool, 'SELECT * FROM collaboration_groups WHERE id=$1 AND account_workspace_id=$2', [delegation.group_id, workspace.id]) : null;
+    const groupOwnerCanWithdraw = action === 'withdraw' && group?.owner_user_id === req.auth.user.id;
+    if (!groupOwnerCanWithdraw) {
+      delegation = await requireDelegationParticipant(pool, delegationId, req.auth.user.id, workspace.id);
+      group = delegation.group_id ? await one(pool, 'SELECT * FROM collaboration_groups WHERE id=$1 AND account_workspace_id=$2', [delegation.group_id, workspace.id]) : null;
+    } else {
+      await requireActiveTaskMembership(pool, delegation.group_id, req.auth.user.id, { allowClosed: true, accountWorkspaceId: workspace.id });
+    }
+    if (group?.status === 'closed' && !(action === 'withdraw' && delegation.status === 'withdrawn')) throw apiError('collaboration_group_closed', '任务群已结束。', 409);
+    if (action === 'withdraw' && delegation.status === 'withdrawn') {
+      if (req.auth.user.id !== delegation.requester_user_id && !groupOwnerCanWithdraw) throw apiError('delegation_update_forbidden', '只有发起人或工作群创建者可以撤回任务。', 403);
+      return res.json({ ok: true, idempotent: true, delegation: await hydratedDelegation(pool, delegationId, req.auth.user.id), ...(delegation.group_id ? await collaborationGroupDetail(pool, delegation.group_id, req.auth.user.id, { accountWorkspaceId: workspace.id }) : {}) });
+    }
+    if (delegation.group_id) await requireActiveTaskMembership(pool, delegation.group_id, req.auth.user.id, { accountWorkspaceId: workspace.id });
     const expectedStatus = String(req.body?.expectedStatus || '').trim();
     const recipientActions = ['working', 'submit', 'decline', 'blocked'];
-    const requesterActions = ['accept_result', 'request_revision', 'publish', 'update_requirements'];
+    const requesterActions = ['accept_result', 'request_revision', 'publish', 'update_requirements', 'withdraw'];
     if (action === 'accept_result' && delegation.status === 'result_accepted') {
       if (req.auth.user.id !== delegation.requester_user_id) throw apiError('delegation_update_forbidden', '只有发起人可以验收结果。', 403);
       return res.json({ ok: true, idempotent: true, delegation: await hydratedDelegation(pool, delegationId, req.auth.user.id), ...(delegation.group_id ? await collaborationGroupDetail(pool, delegation.group_id, req.auth.user.id, { accountWorkspaceId: workspace.id }) : {}) });
@@ -2471,7 +3229,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       throw apiError('delegation_status_conflict', '任务状态已经更新，请刷新后重试。', 409, { expectedStatus, actualStatus: delegation.status });
     }
     if (recipientActions.includes(action) && req.auth.user.id !== delegation.recipient_user_id) throw apiError('delegation_update_forbidden', '只有接收人可以执行此操作。', 403);
-    if (requesterActions.includes(action) && req.auth.user.id !== delegation.requester_user_id) throw apiError('delegation_update_forbidden', '只有发起人可以验收结果。', 403);
+    if (requesterActions.includes(action) && req.auth.user.id !== delegation.requester_user_id && !(action === 'withdraw' && groupOwnerCanWithdraw)) throw apiError('delegation_update_forbidden', '只有发起人可以验收结果。', 403);
     const rawActionMetadata = jsonObject(req.body?.metadata);
     const sourceWorkspaceMessageId = String(rawActionMetadata.sourceWorkspaceMessageId || '').trim();
     if (sourceWorkspaceMessageId && ['submit', 'publish', 'update_requirements'].includes(action)) {
@@ -2489,6 +3247,10 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
     try {
       await inTransaction(pool, async (client) => {
         const locked = await one(client, 'SELECT * FROM agent_delegations WHERE id = $1 FOR UPDATE', [delegationId]);
+        if (action === 'withdraw' && locked?.requester_user_id !== req.auth.user.id) {
+          const lockedGroup = locked?.group_id ? await one(client, 'SELECT owner_user_id FROM collaboration_groups WHERE id=$1 FOR UPDATE', [locked.group_id]) : null;
+          if (lockedGroup?.owner_user_id !== req.auth.user.id) throw apiError('delegation_update_forbidden', '只有发起人或工作群创建者可以撤回任务。', 403);
+        }
         if (sourceWorkspaceMessageId && ['submit', 'publish', 'update_requirements'].includes(action)) {
           const duplicate = await one(client, `SELECT id FROM agent_delegation_revisions
             WHERE delegation_id = $1 AND action = $2 AND metadata_json->>'sourceWorkspaceMessageId' = $3 LIMIT 1`, [delegationId, action, sourceWorkspaceMessageId]);
@@ -2513,7 +3275,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
           `UPDATE agent_delegations SET status = $1,
              instruction = CASE WHEN $4 IN ('publish','update_requirements') THEN $5 ELSE instruction END,
              metadata_json = $2::jsonb, updated_at = now(),
-             completed_at = CASE WHEN $1 = 'closed' THEN now() ELSE NULL END WHERE id = $3`,
+             completed_at = CASE WHEN $1 IN ('closed','withdrawn') THEN COALESCE(completed_at,now()) ELSE NULL END WHERE id = $3`,
           [status, JSON.stringify(metadata), delegationId, action, content.slice(0, 16000)],
         );
         const revisionRow = await one(client, 'SELECT COALESCE(MAX(revision_no), 0) AS revision_no FROM agent_delegation_revisions WHERE delegation_id = $1', [delegationId]);
@@ -2530,25 +3292,36 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
           metadata:{action,status,revisionNo,groupId:delegation.group_id || ''}});
         let groupMessageId = '';
         if (delegation.group_id) {
-          const labels = { submit: '提交了任务结果', accept_result: '接受了任务结果', request_revision: '提出了修改要求', publish: '确认并发布了任务要求', update_requirements: '更新了任务要求', decline: '拒绝了任务', blocked: '将任务标记为受阻', working: '开始处理任务' };
+          const labels = { submit: '提交了任务结果', accept_result: '接受了任务结果', request_revision: '提出了修改要求', publish: '确认并发布了任务要求', update_requirements: '更新了任务要求', withdraw: '撤回了任务', decline: '拒绝了任务', blocked: '将任务标记为受阻', working: '开始处理任务' };
           groupMessageId = newId('group_msg');
           await client.query(
             `INSERT INTO collaboration_group_messages (id, account_workspace_id, group_id, sender_user_id, sender_agent_id, kind, content, metadata_json, source_event_id)
              VALUES ($1, $2, $3, $4, $5, 'agent', $6, $7::jsonb, $8)
              ON CONFLICT DO NOTHING`,
-            [groupMessageId, workspace.id, delegation.group_id, req.auth.user.id, ['submit', 'publish', 'update_requirements'].includes(action) ? 'secretary_agent' : '', content || labels[action], JSON.stringify({ type: 'task_action', action, delegationId, status, revisionNo, attachments: metadata.attachments || [] }), `delegation-milestone:${delegationId}:${revisionNo}:${action}`],
+            [groupMessageId, workspace.id, delegation.group_id, req.auth.user.id, ['submit', 'publish', 'update_requirements', 'withdraw'].includes(action) ? 'secretary_agent' : '', content || labels[action], JSON.stringify({ type: 'task_action', action, delegationId, status, revisionNo, attachments: metadata.attachments || [] }), `delegation-milestone:${delegationId}:${revisionNo}:${action}`],
           );
           await client.query('UPDATE collaboration_groups SET updated_at = now() WHERE id = $1', [delegation.group_id]);
-        } else if (['publish', 'update_requirements'].includes(action)) {
+        } else if (['publish', 'update_requirements', 'submit'].includes(action)) {
+          const isResult = action === 'submit';
+          const socialSenderId = isResult ? delegation.recipient_user_id : delegation.requester_user_id;
+          const socialRecipientId = isResult ? delegation.requester_user_id : delegation.recipient_user_id;
+          const socialTitle = isResult
+            ? `uBuddy 已完成委托：${delegation.title}`
+            : action === 'publish' ? `uBuddy 已发布委托：${delegation.title}` : `uBuddy 已更新委托要求：${delegation.title}`;
+          const socialMetadata = {
+            type: 'agent_delegation', action, delegationId, status, revisionNo,
+            sourceEventId: `task-action:${delegationId}:${revisionNo}:${action}`,
+            attachments: metadata.attachments || [],
+          };
           await client.query(
             `INSERT INTO social_messages (
                id, account_workspace_id, sender_user_id, recipient_user_id, sender_agent_id, recipient_agent_id,
                kind, title, content, metadata_json
              ) VALUES ($1, $2, $3, $4, 'secretary_agent', 'secretary_agent', 'agent', $5, $6, $7::jsonb)`,
-            [newId('social_msg'), workspace.id, delegation.requester_user_id, delegation.recipient_user_id, action === 'publish' ? `uBuddy 已发布委托：${delegation.title}` : `uBuddy 已更新委托要求：${delegation.title}`, content.slice(0, 8000), JSON.stringify({ type: 'agent_delegation', action, delegationId, status, revisionNo })],
+            [newId('social_msg'), workspace.id, socialSenderId, socialRecipientId, socialTitle, content.slice(0, 8000), JSON.stringify(socialMetadata)],
           );
         }
-        const ingressTargetUserId = ['publish', 'update_requirements', 'request_revision', 'accept_result'].includes(action)
+        const ingressTargetUserId = ['publish', 'update_requirements', 'request_revision', 'accept_result', 'withdraw'].includes(action)
           ? delegation.recipient_user_id
           : action === 'submit' ? delegation.requester_user_id : '';
         if (ingressTargetUserId) {
@@ -2556,7 +3329,7 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
             delegationId,
             userId: ingressTargetUserId,
             content: content || `任务状态已更新：${action}`,
-            type: action === 'submit' ? 'result_submitted' : action === 'request_revision' ? 'revision_requested' : action === 'accept_result' ? 'result_accepted' : 'requirements_update',
+            type: action === 'submit' ? 'result_submitted' : action === 'request_revision' ? 'revision_requested' : action === 'accept_result' ? 'result_accepted' : action === 'withdraw' ? 'task_withdrawn' : 'requirements_update',
             sourceEventId: `task-action:${delegationId}:${revisionNo}:${action}`,
             sourceGroupMessageId: groupMessageId,
             fromUserId: req.auth.user.id,
@@ -2573,10 +3346,11 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
         });
       });
     } catch (error) {
-      const current = action === 'accept_result'
+      const current = ['accept_result', 'withdraw'].includes(action)
         ? await one(pool, 'SELECT status FROM agent_delegations WHERE id = $1', [delegationId])
         : null;
-      if (current?.status !== 'result_accepted') throw error;
+      const expectedTerminalStatus = action === 'withdraw' ? 'withdrawn' : 'result_accepted';
+      if (current?.status !== expectedTerminalStatus) throw error;
       transactionIdempotent = true;
     }
     res.json({ ok: true, ...(transactionIdempotent ? { idempotent: true } : {}), delegation: await hydratedDelegation(pool, delegationId, req.auth.user.id), ...(delegation.group_id ? await collaborationGroupDetail(pool, delegation.group_id, req.auth.user.id, { accountWorkspaceId: workspace.id }) : {}) });
@@ -2762,6 +3536,30 @@ export function createApp({ pool, config, mailer, objectStore = null }) {
       [req.auth.user.id, deviceId, String(req.body.platform || ''), String(req.body.arch || ''), String(req.body.hostname || '')],
     );
     res.json({ ok: true, onlineUntil: new Date(Date.now() + 45_000).toISOString() });
+  }));
+
+  app.post('/api/social/presence/query', auth, route(async (req, res) => {
+    requireRecipientPresenceCapability(req);
+    const requested = [...new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : [])
+      .map((value) => String(value || '').trim()).filter(Boolean))].slice(0, 200);
+    if (!requested.length) return res.json({ items: [], onlineWindowSeconds: 45 });
+    const allowed = await allowedPresenceRecipients(pool, req.auth.user.id, requested);
+    if (allowed.size !== requested.length) throw apiError('presence_query_forbidden', '只能查询好友或共同组织成员的在线状态。', 403);
+    const requestedPlaceholders = requested.map((_, index) => `$${index + 1}`).join(',');
+    const rows = await many(pool, `SELECT users.id AS user_id,max(presence.last_seen_at) AS last_seen_at
+      FROM users
+      LEFT JOIN user_presence presence ON presence.user_id=users.id
+      WHERE users.id IN (${requestedPlaceholders})
+      GROUP BY users.id`, requested);
+    const now = Date.now();
+    res.json({
+      onlineWindowSeconds: 45,
+      items: rows.map((row) => {
+        const lastSeenAt = row.last_seen_at ? toIso(row.last_seen_at) : '';
+        const online = Boolean(lastSeenAt && now - new Date(lastSeenAt).getTime() <= 45_000);
+        return { userId: row.user_id, online, lastSeenAt, onlineUntil: lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + 45_000).toISOString() : '' };
+      }),
+    });
   }));
 
   app.get('/api/sessions', auth, route(async (req, res) => {
@@ -3198,6 +3996,53 @@ async function requireWorkspaceMessagingPeer(db, workspace, senderId = '', recip
   return requireMessagingFriend(db, senderId, recipientId, { allowSelf: true });
 }
 
+async function requireCollaborationAssignmentPeer(
+  db,
+  workspace,
+  senderId = '',
+  recipientId = '',
+  organizationAudienceRecipientIds = new Set(),
+) {
+  if (workspace.workspace_kind === 'personal' && organizationAudienceRecipientIds.has(recipientId)) {
+    if (!await isBlockedEitherWay(db, senderId, recipientId)) return true;
+  }
+  return requireWorkspaceMessagingPeer(db, workspace, senderId, recipientId);
+}
+
+async function verifiedOrganizationAudienceRecipientIds(
+  db,
+  workspace,
+  senderId = '',
+  organizationAudienceSnapshot = null,
+) {
+  if (!organizationAudienceSnapshot || workspace.workspace_kind !== 'personal') return new Set();
+  const organizationId = String(organizationAudienceSnapshot.organizationId || '').trim();
+  const snapshotIds = [...new Set(
+    (Array.isArray(organizationAudienceSnapshot.memberUserIds)
+      ? organizationAudienceSnapshot.memberUserIds
+      : []).map((userId) => String(userId || '').trim()).filter(Boolean),
+  )].sort();
+  const currentIds = organizationId ? (await many(db, `SELECT recipient.user_id FROM contact_organization_members owner
+    JOIN contact_organization_members recipient ON recipient.organization_id=owner.organization_id
+    WHERE owner.organization_id=$1 AND owner.user_id=$2 AND recipient.user_id<>$2
+    ORDER BY recipient.user_id`, [organizationId, senderId]))
+    .map((row) => String(row.user_id || '')).filter(Boolean).sort() : [];
+  const membershipHash = currentIds.length ? crypto.createHash('sha256')
+    .update(`${organizationId}\n${currentIds.join('\n')}`, 'utf8')
+    .digest('hex') : '';
+  const current = currentIds.length === snapshotIds.length
+    && currentIds.every((userId, index) => userId === snapshotIds[index])
+    && membershipHash === String(organizationAudienceSnapshot.membershipHash || '');
+  if (!current) {
+    throw apiError(
+      'organization_audience_membership_changed',
+      '组织成员名单已变化，旧确认已失效，请按最新成员重新确认。',
+      409,
+    );
+  }
+  return new Set(currentIds);
+}
+
 async function requireContactChatPeer(db, workspace, senderId = '', recipientId = '') {
   if (!recipientId) throw apiError('recipient_required', '请选择有效联系人。', 400);
   if (recipientId === senderId) return true;
@@ -3206,6 +4051,14 @@ async function requireContactChatPeer(db, workspace, senderId = '', recipientId 
       WHERE workspace_id=$1 AND user_id=$2 AND status='active'`, [workspace.id, recipientId]);
     if (member) return true;
   }
+  const sharedOrganization = await one(db, `SELECT 1 FROM account_workspace_memberships actor JOIN account_workspace_memberships target ON target.workspace_id=actor.workspace_id JOIN account_workspaces org ON org.id=actor.workspace_id WHERE actor.user_id=$1 AND actor.status='active' AND target.user_id=$2 AND target.status='active' AND org.workspace_kind='organization' LIMIT 1`, [senderId, recipientId]);
+  if (sharedOrganization) return true;
+  // Organization directory membership is also a valid calling relationship.
+  // It is intentionally checked separately from account_workspace_memberships:
+  // older organizations and the social directory can carry membership there
+  // before an account workspace projection is materialized.
+  const sharedDirectoryOrganization = await one(db, `SELECT 1 FROM contact_organization_members sender JOIN contact_organization_members recipient ON recipient.organization_id=sender.organization_id WHERE sender.user_id=$1 AND recipient.user_id=$2 LIMIT 1`, [senderId, recipientId]);
+  if (sharedDirectoryOrganization) return true;
   try {
     await requireMessagingFriend(db, senderId, recipientId, { allowSelf: false });
     return true;
@@ -3353,6 +4206,47 @@ function requireDelegationExecutionLeaseCapability(req = {}) {
   }
 }
 
+function requireRecipientPresenceCapability(req = {}) {
+  const capability = String(req.body?.socialCapability || req.body?.capability
+    || req.headers?.['x-janus-social-capability'] || '').trim();
+  if (!capability.split(',').map((item) => item.trim()).includes('recipient-presence-gated-dispatch-v1')) {
+    throw apiError('recipient_presence_capability_required', '当前客户端未声明在线门禁派发能力。', 426);
+  }
+}
+
+async function allowedPresenceRecipients(db, viewerUserId = '', requestedUserIds = []) {
+  const requested = [...new Set((Array.isArray(requestedUserIds) ? requestedUserIds : []).map(String).filter(Boolean))];
+  if (!requested.length) return new Set();
+  const candidatePlaceholders = requested.map((_, index) => `$${index + 2}`).join(',');
+  const params = [viewerUserId, ...requested];
+  const friendRows = await many(db, `SELECT CASE WHEN user_a_id=$1 THEN user_b_id ELSE user_a_id END AS user_id
+    FROM friendships WHERE status='accepted'
+      AND ((user_a_id=$1 AND user_b_id IN (${candidatePlaceholders}))
+        OR (user_b_id=$1 AND user_a_id IN (${candidatePlaceholders})))`, params);
+  const organizationRows = await many(db, `SELECT DISTINCT candidate_member.user_id
+    FROM contact_organization_members viewer
+    JOIN contact_organization_members candidate_member ON candidate_member.organization_id=viewer.organization_id
+    WHERE viewer.user_id=$1 AND candidate_member.user_id IN (${candidatePlaceholders})`, params);
+  return new Set([
+    ...(requested.includes(viewerUserId) ? [viewerUserId] : []),
+    ...friendRows.map((row) => String(row.user_id || '')),
+    ...organizationRows.map((row) => String(row.user_id || '')),
+  ].filter(Boolean));
+}
+
+async function requireRecipientOnline(db, recipientUserId = '') {
+  const presence = await one(db, `SELECT max(last_seen_at) AS last_seen_at FROM user_presence
+    WHERE user_id=$1`, [recipientUserId]);
+  const lastSeenAt = presence?.last_seen_at ? new Date(presence.last_seen_at) : null;
+  if (!lastSeenAt || Date.now() - lastSeenAt.getTime() > 45_000) {
+    throw apiError('recipient_offline', '接收方当前离线，任务已保留在发起设备并等待对方上线。', 409, {
+      recipientUserId,
+      lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : '',
+    });
+  }
+  return lastSeenAt;
+}
+
 async function appendSocialRealtimeEvents(db, {
   accountWorkspaceId = 'workspace_personal', recipientUserIds = [], eventType = 'social.updated',
   aggregateType = 'social', aggregateId = '', aggregateVersion = 0, payload = {},
@@ -3413,6 +4307,14 @@ function requireConversationArchiveCapability(req = {}) {
   }
 }
 
+function requireConversationRemoveCapability(req = {}) {
+  const capability = String(req.body?.socialCapability || req.body?.capability || req.query?.socialCapability
+    || req.query?.capability || req.headers?.['x-janus-social-capability'] || '').trim();
+  if (!capability.split(',').map((item) => item.trim()).includes('conversation-list-remove-v1')) {
+    throw apiError('conversation_remove_capability_required', '当前客户端未声明从群组列表移除会话的能力。', 426);
+  }
+}
+
 function normalizeConversationPreferenceKind(value = '') {
   const kind = String(value || '').trim();
   if (!['chat_group', 'collaboration_group'].includes(kind)) {
@@ -3434,8 +4336,9 @@ async function socialConversationPreferencePayload(db, row = {}) {
   const groupTable = row.conversation_kind === 'chat_group' ? 'chat_groups' : 'collaboration_groups';
   const group = await one(db, `SELECT status,updated_at FROM ${groupTable} WHERE id=$1`, [row.conversation_id]);
   const ended = row.conversation_kind === 'chat_group' ? group?.status === 'dissolved' : group?.status === 'closed';
-  const archived = Boolean(row.archived && (ended || !group?.updated_at || new Date(group.updated_at) <= new Date(row.updated_at)));
-  return { ...conversationPreferencePayloadFromRow(row), archived, autoReopened: Boolean(row.archived && !archived) };
+  const requestedArchived = Boolean(row.archived || row.removed_at);
+  const archived = Boolean(requestedArchived && (ended || !group?.updated_at || new Date(group.updated_at) <= new Date(row.updated_at)));
+  return { ...conversationPreferencePayloadFromRow(row), archived, autoReopened: Boolean(requestedArchived && !archived) };
 }
 
 function conversationPreferencePayloadFromRow(row = {}) {
@@ -3445,7 +4348,9 @@ function conversationPreferencePayloadFromRow(row = {}) {
     userId: row.user_id || '',
     conversationKind: row.conversation_kind || '',
     conversationId: row.conversation_id || '',
-    archived: Boolean(row.archived),
+    archived: Boolean(row.archived || row.removed_at),
+    removed: false,
+    removedAt: '',
     stateRevision: Number(row.state_revision || 0),
     lastCommandId: row.last_command_id || '',
     sourceDeviceId: row.source_device_id || '',
@@ -3460,6 +4365,7 @@ async function naturalChatGroupsOverview(db, userId = '', accountWorkspaceId = '
   const rows = await many(db, `SELECT chat.*,
       membership.user_id AS membership_user_id,membership.role AS membership_role,membership.status AS membership_status,membership.invited_by_user_id AS membership_invited_by_user_id,
       membership.display_name_override AS membership_display_name_override,
+      COALESCE(to_jsonb(membership)->>'remark','') AS membership_remark,
       membership.joined_at AS membership_joined_at,membership.left_at AS membership_left_at,membership.last_read_at AS membership_last_read_at
     FROM chat_groups chat JOIN chat_group_members membership ON membership.group_id=chat.id AND membership.user_id=$1
     WHERE membership.status IN ('active','left','removed')${workspacePredicate}
@@ -3519,7 +4425,36 @@ async function naturalChatGroupDetail(db, groupId = '', userId = '', accountWork
       AND ($3::timestamptz IS NULL OR message.created_at>=$3::timestamptz)
       AND ($4::timestamptz IS NULL OR message.created_at<=$4::timestamptz)
     ORDER BY message.created_at,message.id`, [groupId, group.account_workspace_id, lowerBound, upperBound]);
-  if (markRead && membership.status === 'active') await db.query('UPDATE chat_group_members SET last_read_at=now() WHERE group_id=$1 AND user_id=$2', [groupId, userId]);
+  if (markRead && membership.status === 'active') {
+    await db.query('UPDATE chat_group_members SET last_read_at=now() WHERE group_id=$1 AND user_id=$2', [groupId, userId]);
+  }
+  const receiptRows = await many(db, `SELECT receipt.message_id,receipt.recipient_user_id,receipt.read_at,
+      recipient.email,recipient.display_name,recipient.username,recipient.avatar_url,recipient.role AS user_role,
+      recipient.email_verified
+    FROM chat_group_message_receipts receipt
+    JOIN chat_group_messages message ON message.id=receipt.message_id AND message.sender_user_id=$2
+    JOIN users recipient ON recipient.id=receipt.recipient_user_id
+    WHERE receipt.group_id=$1 ORDER BY receipt.message_id,receipt.read_at NULLS LAST,recipient.display_name,recipient.id`, [groupId, userId]);
+  const receiptsByMessage = new Map();
+  for (const receipt of receiptRows) {
+    const items = receiptsByMessage.get(receipt.message_id) || [];
+    items.push({
+      userId: receipt.recipient_user_id,
+      read: Boolean(receipt.read_at),
+      readAt: receipt.read_at ? toIso(receipt.read_at) : '',
+      user: publicUser({ id: receipt.recipient_user_id, email: receipt.email, display_name: receipt.display_name,
+        username: receipt.username, avatar_url: receipt.avatar_url, role: receipt.user_role, email_verified: receipt.email_verified }),
+    });
+    receiptsByMessage.set(receipt.message_id, items);
+  }
+  for (const message of messages) {
+    const details = receiptsByMessage.get(message.id) || [];
+    if (message.sender_user_id === userId && message.kind !== 'system') {
+      message.receipt_details = details;
+      message.receipt_summary = { total: details.length, read: details.filter((item) => item.read).length,
+        unread: details.filter((item) => !item.read).length };
+    }
+  }
   return {
     group: naturalChatGroupPayload(group),
     membership: naturalChatMemberPayload(membership),
@@ -3562,6 +4497,7 @@ function naturalChatGroupPayload(row = {}) {
     ...(row.membership_role ? { membership: {
       groupId: row.id, userId: row.membership_user_id || '', role: row.membership_role, status: row.membership_status || 'active',
       displayNameOverride: row.membership_display_name_override || '',
+      remark: row.membership_remark || '',
       invitedByUserId: row.membership_invited_by_user_id || '', joinedAt: toIso(row.membership_joined_at),
       leftAt: row.membership_left_at ? toIso(row.membership_left_at) : '', lastReadAt: row.membership_last_read_at ? toIso(row.membership_last_read_at) : '',
     } } : {}),
@@ -3574,6 +4510,7 @@ function naturalChatMemberPayload(row = {}) {
     invitedByUserId: row.invited_by_user_id || '', joinedAt: toIso(row.joined_at), leftAt: row.left_at ? toIso(row.left_at) : '',
     lastReadAt: row.last_read_at ? toIso(row.last_read_at) : '',
     displayNameOverride: row.display_name_override || '',
+    remark: row.remark || '',
     user: row.email !== undefined ? {
       ...publicUser({ id: row.user_id, email: row.email, display_name: row.display_name,
         username: row.username, avatar_url: row.avatar_url, role: row.user_role, email_verified: row.email_verified }),
@@ -3586,13 +4523,14 @@ function naturalChatMessagePayload(row = {}) {
   return {
     id: row.id, accountWorkspaceId: row.account_workspace_id || 'workspace_personal', workspaceId: row.account_workspace_id || 'workspace_personal',
     groupId: row.group_id || '', senderUserId: row.sender_user_id || '', senderAgentId: row.sender_agent_id || '',
-    kind: normalizeMessageKind(row.kind), content: row.content || '', sourceEventId: row.source_event_id || '', metadata: jsonObject(row.metadata_json),
+    kind: normalizeMessageKind(row.kind), content: row.content || '', sourceEventId: row.source_event_id || '', metadata: normalizeMessageReactionMetadata(jsonObject(row.metadata_json)),
     sender: {
       ...publicUser({ id: row.sender_user_id, email: row.sender_email, display_name: row.sender_display_name,
         username: row.sender_username, avatar_url: row.sender_avatar_url, role: row.sender_role, email_verified: row.sender_email_verified }),
       accountDisplayName: row.sender_account_display_name || row.sender_display_name || '',
     },
     createdAt: toIso(row.created_at), updatedAt: toIso(row.updated_at),
+    ...(row.receipt_summary ? { receiptSummary: row.receipt_summary, receiptDetails: row.receipt_details || [] } : {}),
   };
 }
 

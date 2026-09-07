@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_REPO="${JANUS_APP_REPO:-/path/to/Janus}"
+GITHUB_REPO="${JANUS_GITHUB_REPO:-iLearn-Agent/Janus}"
+ALLOW_DIRTY=0
+SKIP_CHECK=0
+TEST_RELEASE=0
+REQUESTED_VERSION=""
+
+usage() {
+  cat <<'EOF'
+Usage: npm run release:desktop -- [options]
+
+Options:
+  --allow-dirty  Rejected for multi-platform desktop releases; commit first.
+  --skip-check   Skip npm run check (not recommended).
+  --test         Publish the isolated Janus Test application to test_releases.
+  --version VER  Override the package version for this release.
+  -h, --help     Show this help.
+
+Both production and test releases are built from origin/main. The release
+version defaults to package.json; test releases push test-v<version> to trigger
+the isolated test-channel GitHub builds. Production releases additionally
+require a successful test.yml run for the exact origin/main commit.
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    --allow-dirty) ALLOW_DIRTY=1 ;;
+    --skip-check) SKIP_CHECK=1 ;;
+    --test) TEST_RELEASE=1 ;;
+    --version)
+      [[ $# -ge 2 ]] || { echo "--version requires a value" >&2; exit 2; }
+      REQUESTED_VERSION="$2"
+      shift
+      ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+for command in node npm git gh; do
+  command -v "$command" >/dev/null || { echo "Required command not found: $command" >&2; exit 3; }
+done
+
+cd "$APP_REPO"
+if (( ALLOW_DIRTY )); then
+  echo "Multi-platform desktop releases cannot use --allow-dirty." >&2
+  echo "Commit and push the exact source so every platform builds the same tree." >&2
+  exit 4
+fi
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Working tree is not clean. Commit the release source before publishing." >&2
+  exit 4
+fi
+if (( TEST_RELEASE )) && [[ -n "$(git status --porcelain)" ]]; then
+  echo "Test releases cannot be built from a dirty working tree. Commit every source change first." >&2
+  exit 4
+fi
+
+VERSION="${REQUESTED_VERSION:-$(node -p "require('./package.json').version")}"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid release version: $VERSION" >&2
+  exit 5
+fi
+
+LOCAL_HEAD="$(git rev-parse HEAD)"
+WORKFLOW_REF="main"
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "$WORKFLOW_REF" ]]; then
+  echo "Desktop releases must be created from the main branch." >&2
+  echo "Current branch: ${CURRENT_BRANCH:-detached HEAD}" >&2
+  exit 6
+fi
+if (( TEST_RELEASE )); then
+  RELEASE_CHANNEL="test"
+else
+  RELEASE_CHANNEL="stable"
+fi
+REMOTE_HEAD="$(git ls-remote origin "refs/heads/$WORKFLOW_REF" | awk '{print $1}')"
+if [[ -z "$REMOTE_HEAD" || "$LOCAL_HEAD" != "$REMOTE_HEAD" ]]; then
+  echo "Desktop Runner builds require the release commit to be pushed to origin/$WORKFLOW_REF first." >&2
+  echo "Local:  $LOCAL_HEAD" >&2
+  echo "Remote: ${REMOTE_HEAD:-missing}" >&2
+  exit 6
+fi
+
+if (( ! TEST_RELEASE )); then
+  CI_WORKFLOW="${JANUS_RELEASE_CI_WORKFLOW:-test.yml}"
+  CI_RUNS="$(gh run list --repo "$GITHUB_REPO" --workflow "$CI_WORKFLOW" --commit "$LOCAL_HEAD" \
+    --limit 20 --json databaseId,status,conclusion,headSha,url)"
+  GREEN_CI_RUN="$(printf '%s' "$CI_RUNS" | node -e '
+    let input = "";
+    process.stdin.on("data", (chunk) => { input += chunk; });
+    process.stdin.on("end", () => {
+      const runs = JSON.parse(input || "[]");
+      const run = runs.find((item) => item.status === "completed" && item.conclusion === "success");
+      if (run) process.stdout.write(String(run.databaseId || "success"));
+    });
+  ')"
+  if [[ -z "$GREEN_CI_RUN" ]]; then
+    echo "Refusing to publish: $CI_WORKFLOW has no successful run for $LOCAL_HEAD." >&2
+    echo "Wait for CI to pass or fix the failing diagnostics before releasing." >&2
+    exit 6
+  fi
+fi
+
+if (( ! SKIP_CHECK )); then npm run check; fi
+
+bash deploy/sync-desktop-provider-secrets --channel "$RELEASE_CHANNEL"
+
+failed=0
+if (( TEST_RELEASE )); then
+  RELEASE_TAG="test-v$VERSION"
+  if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null \
+    || [[ -n "$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG")" ]]; then
+    echo "Test release tag already exists: $RELEASE_TAG" >&2
+    exit 7
+  fi
+  git tag "$RELEASE_TAG"
+  if ! git push origin "$RELEASE_TAG"; then
+    git tag -d "$RELEASE_TAG" >/dev/null
+    echo "Unable to push test release tag $RELEASE_TAG." >&2
+    exit 7
+  fi
+else
+  gh workflow run build-macos.yml --repo "$GITHUB_REPO" --ref "$WORKFLOW_REF" -f version="$VERSION" -f channel="$RELEASE_CHANNEL" -f source_commit="$LOCAL_HEAD" || failed=1
+  gh workflow run build-windows.yml --repo "$GITHUB_REPO" --ref "$WORKFLOW_REF" -f version="$VERSION" -f channel="$RELEASE_CHANNEL" -f source_commit="$LOCAL_HEAD" || failed=1
+  if (( failed )); then
+    echo "At least one desktop build workflow could not be dispatched." >&2
+    exit 7
+  fi
+fi
+
+linux_args=(--skip-install --skip-check --version "$VERSION")
+if (( TEST_RELEASE )); then linux_args+=(--test); fi
+bash deploy/janus-release-linux "${linux_args[@]}"
+
+echo "Triggered Windows and macOS builds and published the Linux build for Janus $VERSION ($RELEASE_CHANNEL)."
+echo "Each platform signs and publishes its artifacts independently."

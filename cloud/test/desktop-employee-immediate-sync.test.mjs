@@ -489,6 +489,103 @@ test('a stale cloud roster cannot overwrite a pending local employee lifecycle c
   assert.deepEqual(store.listMemoryDocuments({ agentInstanceId: active.id }).map((item) => item.id), memoryIds);
 });
 
+test('a stale cloud roster preserves a locally renamed employee for the next sync batch', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'janus-employee-profile-sync-'));
+  const db = openDatabase(root, { skipMigrationBackup: true });
+  const store = new Store(db, { root });
+  t.after(async () => { db.close(); await fs.rm(root, { recursive: true, force: true }); });
+  db.prepare(`INSERT INTO auth_users(id,email,display_name,username,remote_id,remote_bound_at,email_verified)
+    VALUES('local_profile','profile@example.test','Profile User','profile_user','remote_profile',?,1)`).run(new Date().toISOString());
+  store.upsertAgentFamily({ id: 'profile_family', name: 'Profile Family', departmentId: 'general', role: 'agent', routable: true });
+  const version = store.upsertAgentVersion({
+    agent: { id: 'profile_family', name: 'Profile Family', departmentId: 'general', role: 'agent', baseSkill: '# Skill\n' },
+    memoryTemplate: '# Memory\n',
+  });
+  const instance = store.recruitUserAgent({
+    userId: 'local_profile', agentFamilyId: 'profile_family', commandId: 'profile_seed',
+  }).instance;
+  const cloudUpdatedAt = '2026-01-01T00:00:00.000Z';
+  const syncCursor = '2026-01-02T00:00:00.000Z';
+  db.prepare('UPDATE user_agent_instances SET updated_at=? WHERE id=?').run(cloudUpdatedAt, instance.id);
+  const renamed = store.updateUserAgentProfile({
+    userId: 'local_profile', agentInstanceId: instance.id,
+    displayName: 'Research Owner', note: 'Owns research and evidence review.',
+  });
+
+  store.applyCloudEmployeeInstance({
+    userId: 'local_profile',
+    instance: {
+      id: instance.id, agentFamilyId: 'profile_family', baseAgentVersionId: version.id,
+      status: 'active', employmentState: 'active', stateRevision: instance.stateRevision,
+      policyVersion: 'employee_cloud_authority_v1', syncEnabled: true,
+      familyInstanceSeq: instance.familyInstanceSeq, displayName: 'Profile Family A', note: '',
+      updatedAt: cloudUpdatedAt,
+    },
+  });
+
+  const preserved = store.getUserAgentInstance(instance.id);
+  assert.equal(preserved.displayName, 'Research Owner');
+  assert.equal(preserved.note, 'Owns research and evidence review.');
+  assert.equal(preserved.updatedAt, renamed.updatedAt, 'a stale roster must not clear the local profile sync timestamp');
+
+  const sync = new CloudSyncService({ root, db, store, client: {}, defaultConfig: {} });
+  sync.saveConfig({ serverUrl: 'https://cloud.example.test', userId: 'remote_profile', deviceId: 'profile_device' });
+  t.after(() => sync.close());
+  sync.applyIdentitySnapshot({
+    status: 'ok',
+    data: {
+      userAgentInstances: [{
+        id: instance.id, agent_family_id: 'profile_family', base_agent_version_id: version.id,
+        status: 'active', employment_state: 'active', state_revision: instance.stateRevision,
+        policy_version: 'employee_cloud_authority_v1', sync_enabled: 1,
+        family_instance_seq: instance.familyInstanceSeq, display_name: 'Profile Family A', note: '',
+        updated_at: cloudUpdatedAt,
+      }],
+    },
+  }, { remoteUserId: 'remote_profile' });
+  const afterIdentityPull = store.getUserAgentInstance(instance.id);
+  assert.equal(afterIdentityPull.displayName, 'Research Owner');
+  assert.equal(afterIdentityPull.note, 'Owns research and evidence review.');
+  assert.equal(afterIdentityPull.updatedAt, renamed.updatedAt,
+    'a stale V6 identity snapshot must not clear the local profile sync timestamp');
+  sync.applyIdentitySnapshot({
+    status: 'ok',
+    data: {
+      userAgentInstances: [{
+        id: instance.id, agent_family_id: 'profile_family', base_agent_version_id: version.id,
+        status: 'active', employment_state: 'active', state_revision: instance.stateRevision,
+        policy_version: 'employee_cloud_authority_v1', sync_enabled: 1,
+        family_instance_seq: instance.familyInstanceSeq, display_name: 'Profile Family A', note: '',
+        updated_at: cloudUpdatedAt,
+      }],
+    },
+  }, { remoteUserId: 'remote_profile' });
+  assert.equal(store.getUserAgentInstance(instance.id).displayName, 'Research Owner',
+    'replaying the stale snapshot must be idempotent');
+  const payload = await sync.buildBatchPayload({ ...sync.state(), last_sync_cursor: syncCursor });
+  const profile = payload.data.userAgentInstances.find((item) => item.id === instance.id);
+  assert.equal(profile?.display_name, 'Research Owner');
+  assert.equal(profile?.note, 'Owns research and evidence review.');
+
+  const newerCloudUpdatedAt = '2030-01-01T00:00:00.000Z';
+  sync.applyIdentitySnapshot({
+    status: 'ok',
+    data: {
+      userAgentInstances: [{
+        id: instance.id, agent_family_id: 'profile_family', base_agent_version_id: version.id,
+        status: 'active', employment_state: 'active', state_revision: instance.stateRevision,
+        policy_version: 'employee_cloud_authority_v1', sync_enabled: 1,
+        family_instance_seq: instance.familyInstanceSeq, display_name: 'Remote Research Owner', note: 'Updated remotely.',
+        updated_at: newerCloudUpdatedAt,
+      }],
+    },
+  }, { remoteUserId: 'remote_profile' });
+  const newerRemoteProfile = store.getUserAgentInstance(instance.id);
+  assert.equal(newerRemoteProfile.displayName, 'Remote Research Owner');
+  assert.equal(newerRemoteProfile.note, 'Updated remotely.');
+  assert.equal(newerRemoteProfile.updatedAt, newerCloudUpdatedAt);
+});
+
 test('existing pending deactivations migrate to locally inactive while retaining the upload outbox', async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'janus-local-deactivation-migration-'));
   const db = openDatabase(root, { skipMigrationBackup: true });

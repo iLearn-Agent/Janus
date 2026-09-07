@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" data-default-language="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Janus 数据库恢复</title>
+    <script>
+      const platform = new URLSearchParams(location.search).get('platform');
+      if (platform) document.documentElement.dataset.platform = platform;
+    </script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="recovery-header"><div class="brand"><img src="../../../assets/icons/256x256.png" alt="Janus" /></div><div class="header-copy"><h1>本地数据恢复</h1><p>Janus 启动时检测到本地数据需要处理。</p></div><div class="header-actions"><button id="languageToggleButton" class="language-toggle" type="button" data-no-localize><span class="language-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span><span id="languageToggleLabel" class="language-label">EN</span></button><button id="quitButton" class="quit-button" type="button">退出 Janus</button></div></header>
+      <section class="card status-card"><div class="copy-stack"><span id="statusBadge" class="badge">正在检查</span><h2 id="statusTitle">检查数据库状态</h2><p id="statusDetail">请稍候……</p></div><button id="scanButton" class="secondary">重新检查</button></section>
+      <section class="card recommendation"><span class="eyebrow">推荐操作</span><h2 id="recommendedTitle">正在判断最安全的处理方式</h2><p id="recommendedDetail">所有更改都会先备份，并在副本中验证。</p>
+        <div class="actions"><button id="recommendedButton" class="primary" disabled>请稍候</button></div>
+        <div id="repairProgress" class="progress-panel" hidden><div class="progress-heading"><strong id="progressStage">正在准备</strong><span id="progressPercent">0%</span></div><div class="progress-track"><span id="progressBar"></span></div></div>
+        <pre id="operationResult" hidden></pre></section>
+      <details id="advancedRecovery" class="advanced">
+        <summary>高级恢复选项</summary>
+        <div class="advanced-content">
+          <section class="option-group"><h2>手动修复</h2><p>自动修复会先创建备份，再在副本上迁移和验证。</p><div class="actions"><button id="repairButton" class="secondary">自动备份并修复</button><button id="backupButton" class="secondary">仅创建紧急备份</button></div></section>
+          <section class="option-group"><h2>可用备份</h2><p>恢复前仍会保留当前数据库的紧急副本。</p><div id="backupList" class="backup-list"></div></section>
+          <section class="option-group"><h2>隔离旧数据库</h2><p>修复旧库并恢复聊天与 Agent Memory。</p><div id="quarantineList" class="backup-list"></div></section>
+          <section class="option-group danger-zone"><h2>最后兜底</h2><p>隔离旧数据库并创建干净的新数据库。旧数据不会被删除。</p><p id="freshRiskSummary">正在统计本地独有数据……</p><div class="actions"><button id="freshButton" class="danger">隔离旧库并使用新数据库</button></div></section>
+          <section class="option-group compact"><div class="actions"><button id="diagnosticsButton" class="secondary">导出诊断</button><button id="directoryButton" class="secondary">打开数据目录</button><button id="restartButton" class="secondary">重新启动</button></div></section>
+        </div>
+      </details>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

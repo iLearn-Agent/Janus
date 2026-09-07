@@ -1,0 +1,327 @@
+@import url('../../../styles/network.css');
+
+/* Message list primitives; final workspace sizing lives in workspace-ui.css. */
+.im-message-shortcuts {
+  display: grid;
+  box-sizing: border-box;
+  grid-template-columns: repeat(3, 36px);
+  justify-content: start;
+  justify-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  column-gap: 36px;
+  row-gap: 0;
+  padding: 1px 52px 11px 16px;
+}
+
+.im-message-shortcut {
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ui-text);
+  background: transparent;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.im-message-shortcut:hover,
+.im-message-shortcut.active {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-hover);
+}
+
+.im-message-shortcut-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #3370ff, #6755df);
+  box-shadow: 0 3px 9px rgba(51, 112, 255, 0.16);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.im-message-shortcut.is-running .im-message-shortcut-avatar::after,
+.im-message-shortcut.has-result .im-message-shortcut-avatar::after {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ui-surface);
+  border-radius: 50%;
+  background: #22a06b;
+  content: '';
+  box-sizing: border-box;
+}
+
+.im-message-shortcut.has-result:not(.is-running) .im-message-shortcut-avatar::after {
+  background: #f59e0b;
+}
+
+.im-message-shortcut.is-running .im-message-shortcut-badge {
+  color: #16845b;
+}
+
+.im-message-shortcut.has-result:not(.is-running) .im-message-shortcut-badge {
+  color: #b66a05;
+}
+
+.im-message-shortcut.is-private .im-message-shortcut-avatar {
+  color: #17635a;
+  background: linear-gradient(145deg, #dff7ef, #e6f2ff);
+  box-shadow: inset 0 0 0 1px rgba(23, 99, 90, 0.12);
+}
+
+.im-message-shortcut.is-follower .im-message-shortcut-avatar {
+  color: #fff;
+  background: linear-gradient(145deg, #0f9f91, #18b7a5);
+  box-shadow: 0 4px 11px rgba(15, 159, 145, .24);
+}
+
+.im-message-shortcut.is-follower.is-running .im-message-shortcut-avatar::after,
+.im-message-shortcut.is-follower.has-result .im-message-shortcut-avatar::after,
+.im-message-shortcut.is-follower.has-attention .im-message-shortcut-avatar::after {
+  top: -2px;
+  right: -2px;
+  bottom: auto;
+}
+
+.im-message-shortcut-beta {
+  position: absolute;
+  right: -8px;
+  bottom: -3px;
+  display: inline-grid;
+  place-items: center;
+  height: 12px;
+  padding: 0 3px;
+  border: 1px solid var(--ui-surface);
+  border-radius: 999px;
+  color: #0b675f;
+  background: #d6faf4;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 10px;
+  letter-spacing: .01em;
+  box-sizing: content-box;
+}
+
+.im-message-shortcut.has-attention .im-message-shortcut-avatar::after {
+  background: #ef4444;
+}
+
+.im-message-shortcut-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.im-message-shortcut-badge {
+  position: absolute;
+  top: -3px;
+  left: calc(100% - 6px);
+  display: inline-grid;
+  place-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: var(--ui-accent-strong);
+  background: var(--ui-accent-soft);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.im-message-shortcut-pending-badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--ui-surface);
+  border-radius: 999px;
+  color: #fff;
+  background: #e5484d;
+  box-sizing: border-box;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+.im-message-shortcut-pending-badge[hidden] {
+  display: none;
+}
+
+.im-message-shortcut-copy {
+  display: grid;
+  min-width: 0;
+  max-width: 68px;
+}
+
+.im-message-shortcut-copy strong,
+.im-message-shortcut-copy em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-message-shortcut-copy strong {
+  color: var(--ui-text);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.im-message-shortcut-copy em {
+  display: none;
+}
+
+.im-message-shortcut.is-exhausted .im-message-shortcut-copy em {
+  color: var(--ui-warning);
+}
+
+.im-conversation-section-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 0 10px 0 12px;
+  border-top: 1px solid var(--ui-border);
+  border-bottom: 1px solid var(--ui-border);
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+
+.im-conversation-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ui-text);
+  font-weight: 650;
+}
+
+.im-conversation-section-title strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--ui-muted);
+  background: var(--ui-surface-subtle);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.im-conversation-search-anchor {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.im-conversation-search-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ui-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.im-conversation-search-toggle:hover,
+.im-conversation-search-toggle:focus-visible,
+.im-conversation-search-toggle.is-active {
+  color: var(--ui-accent-strong);
+  background: var(--ui-accent-soft);
+  outline: none;
+}
+
+.im-conversation-search-toggle:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-accent-strong) 42%, transparent);
+}
+
+.im-conversation-search-toggle svg {
+  width: 17px;
+  height: 17px;
+}
+
+.im-conversation-search-popover {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(274px, calc(100vw - 36px));
+  margin: 0;
+  border: 1px solid var(--ui-border);
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  box-shadow: 0 12px 28px rgba(25, 42, 67, 0.18);
+}
+
+.im-conversation-search-popover[hidden] {
+  display: none !important;
+}
+
+.im-conversation-search-popover input::placeholder {
+  color: var(--ui-muted);
+}
+
+.im-conversation-title-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.im-conversation-title-line strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-conversation-badge {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--ui-muted);
+  background: var(--ui-surface-subtle);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 14px;
+}
+
+.im-conversation-badge.is-task {
+  color: var(--ui-accent-strong);
+  background: var(--ui-accent-soft);
+}
+
+.im-conversation-badge.is-ended {
+  color: var(--ui-muted);
+  background: var(--ui-surface-hover);
+}
+
+.im-conversation-preview-prefix {
+  color: var(--ui-muted);
+  font-weight: 600;
+}

@@ -18,6 +18,10 @@ test('PostgreSQL Stage 8 contract calculates levels and builds the same family c
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
+  // Stage 8 is independent of the employee-authority migration, whose UPDATE ... FROM
+  // backfill is not implemented by pg-mem. Production PostgreSQL still runs migration 011.
+  await pool.query('CREATE TABLE schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+  await pool.query("INSERT INTO schema_migrations(filename) VALUES('011_employee_authority.sql'),('048_seed_core_agent_catalog.sql'),('049_repair_core_ppt_agent_catalog.sql'),('056_seed_additional_general_agents.sql'),('059_consolidate_general_agent_families.sql')");
   await migrate(pool);
   await pool.query('ALTER TABLE cloud_user_agent_instances_v3 ADD COLUMN IF NOT EXISTS deactivated_at timestamptz');
   const keyring = { activeKeyId: 'test', keys: { test: Buffer.alloc(32, 6).toString('base64') } };
@@ -49,7 +53,9 @@ test('PostgreSQL Stage 8 contract calculates levels and builds the same family c
     if (index < 5) await insertEvidence(pool, keyring, { userId, instanceId, sourceKind: 'message', sourceId: `${instanceId}_chat`, content: `chat evidence ${instanceId}` });
     if (index < 3) await insertEvidence(pool, keyring, { userId, instanceId, sourceKind: 'memory_version', sourceId: `${instanceId}_memory`, sourceVersionId: `${instanceId}_memory_v1`, content: `memory evidence ${instanceId}` });
   }
-  await pool.query("INSERT INTO cloud_user_agent_instances_v3(user_id,id,agent_family_id,base_agent_version_id,status,sync_enabled,personal_evolution_consent,cluster_contribution_consent) VALUES('u0','secretary_instance','secretary_agent','secretary_agent_v1','active',true,true,true)");
+  await pool.query("INSERT INTO cloud_agent_families_v3(id,department_id,name) VALUES('secretary_agent','general','Secretary')");
+  await pool.query("INSERT INTO cloud_agent_versions_v3(id,agent_family_id) VALUES('secretary_base','secretary_agent')");
+  await pool.query("INSERT INTO cloud_user_agent_instances_v3(user_id,id,agent_family_id,base_agent_version_id,status,sync_enabled,personal_evolution_consent) VALUES('u0','secretary_instance','secretary_agent','secretary_base','active',true,true)");
   await pool.query("INSERT INTO collaboration_groups(id,owner_user_id,title) VALUES('historical_group','u0','Historical')");
   await pool.query("INSERT INTO collaboration_group_messages(id,group_id,sender_user_id,sender_agent_id,kind,content) VALUES('historical_group_message','historical_group','u0','secretary_agent','agent','historical collaboration verification')");
   await pool.query("INSERT INTO agent_delegations(id,requester_user_id,recipient_user_id,title,status,group_id) VALUES('historical_delegation','u0','u1','Historical delegation','accepted','historical_group')");
@@ -119,6 +125,9 @@ test('PostgreSQL Stage 8 contract calculates levels and builds the same family c
   await pool.query(`INSERT INTO cloud_personal_skill_overlay_versions (id,user_id,user_agent_instance_id,agent_family_id,base_agent_version_id,status,stability_status,content_ciphertext,content_nonce,content_tag,encryption_algorithm,key_id)
     VALUES ('overlay','u0','i0','family','base','active','stable',$1,$2,$3,$4,$5)`, [overlay.ciphertext, overlay.nonce, overlay.tag, overlay.algorithm, overlay.keyId]);
   await pool.query("UPDATE cloud_user_agent_instances_v3 SET active_personal_skill_version_id='overlay' WHERE id='i0'");
+  await pool.query(`INSERT INTO cloud_user_evolution_preferences(user_id,enabled,policy_version,state_revision)
+    VALUES('u0',false,'evolution_default_on_account_pause_v1',1)
+    ON CONFLICT(user_id) DO UPDATE SET enabled=false`);
   assert.equal((await service.setCanaryOptIn({ userId: 'u0', agentInstanceId: 'i0', enabled: false })).optedIn, false);
   assert.equal((await service.adopt({ userId: 'u0', agentInstanceId: 'i0', marketVersionId: version.id, action: 'ignore' })).status, 'ignored');
   await service.reconcileMarketCanaries();
@@ -137,6 +146,7 @@ test('PostgreSQL Stage 8 contract calculates levels and builds the same family c
   assert.ok(marketEvidence.metadata_json.allowedEvolutionScopes.includes('cluster'));
   assert.equal(Number((await pool.query("SELECT COUNT(*) count FROM cloud_evolution_evidence_usage WHERE evidence_id=$1 AND evolution_scope='personal'",[marketEvidence.evidence_id])).rows[0].count),1);
   assert.equal(Number((await pool.query("SELECT COUNT(*) count FROM cloud_evolution_evidence_usage WHERE evidence_id=$1 AND evolution_scope='cluster'",[marketEvidence.evidence_id])).rows[0].count),1);
+  await pool.query("UPDATE cloud_user_evolution_preferences SET enabled=false WHERE user_id='u0'");
   const rolledBack = await service.adopt({ userId: 'u0', agentInstanceId: 'i0', marketVersionId: version.id, action: 'rollback',
     expectedEffectiveSkillHash: adopted.effectiveSkillHash });
   assert.equal(rolledBack.status, 'rolled_back');
@@ -163,6 +173,8 @@ test('PostgreSQL Stage 8 skips cluster jobs when selected evidence has fewer tha
   const adapter = memory.adapters.createPg();
   const pool = new adapter.Pool();
   t.after(() => pool.end());
+  await pool.query('CREATE TABLE schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+  await pool.query("INSERT INTO schema_migrations(filename) VALUES('011_employee_authority.sql'),('048_seed_core_agent_catalog.sql'),('049_repair_core_ppt_agent_catalog.sql'),('056_seed_additional_general_agents.sql'),('059_consolidate_general_agent_families.sql')");
   await migrate(pool);
   const keyring = { activeKeyId: 'test', keys: { test: Buffer.alloc(32, 5).toString('base64') } };
   const service = createPostgresStage8Authority({ pool, env: {}, modelExecutor: async () => '{}', keyring });
