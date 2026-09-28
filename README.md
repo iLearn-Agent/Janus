@@ -44,6 +44,7 @@ https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 
 ---
 
+
 ## 📰 News
 
 - **2026-08-16** 🚀 Janus v1.1.0 is now available, with a redesigned uBuddy collaboration experience, background execution, messaging, navigation, and localization, plus the Follower Beta and in-app updates.
@@ -51,6 +52,7 @@ https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 - **Task understanding** 🧭 uBuddy task intake now has longer recovery paths, safer fallback decisions, live model capability filtering, and improved profile and update interactions.
 - **Recoverable execution** 🔄 Background Agent work gained isolated task workspaces, bounded recovery, persistent wake-up state, and a fully configurable model service.
 - **Collaboration delivery** 🤝 Multi-Agent and cross-user tasks gained owner review, explicit member assignment, persistent task groups, stronger workspace isolation, and richer Office deliverables.
+
 
 ---
 
@@ -62,6 +64,7 @@ https://github.com/user-attachments/assets/79b2d2e4-7704-4785-9a6a-e78d3e84d755
 - [Agent Governance](#-agent-governance)
 - [Quick Start](#-quick-start)
 - [Self-hosting](#-self-hosting)
+
 
 ## ✨ Key Features
 
